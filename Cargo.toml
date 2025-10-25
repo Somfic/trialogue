@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.100"
 bevy_ecs = "0.17.2"
+bytemuck = { version = "1.24.0", features = ["derive"] }
+env_logger = "0.11.8"
 glam = "0.30.8"
+log = "0.4.28"
+pollster = "0.4.0"
 wgpu = "27.0.1"
+winit = "0.30.12"
