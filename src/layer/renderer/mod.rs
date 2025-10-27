@@ -14,7 +14,13 @@ pub struct Mesh {
     pub indices: Vec<Index>,
 }
 
-#[derive(Resource)]
+#[derive(Component)]
+pub struct Renderable {
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+    pub index_count: u32,
+}
+
 pub struct RenderLayer {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -147,6 +153,39 @@ impl RenderLayer {
             self.is_surface_configured = true;
         }
     }
+
+    fn process_new_meshes(&self, world: &mut World) {
+        let new_renderables: Vec<_> = world
+            .query_filtered::<(Entity, &Mesh), Without<Renderable>>()
+            .iter(world)
+            .map(|(entity, mesh)| {
+                let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&mesh.vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+
+                let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Index Buffer"),
+                    contents: bytemuck::cast_slice(&mesh.indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                });
+
+                let renderable = Renderable {
+                    vertex_buffer,
+                    index_buffer,
+                    index_count: mesh.indices.len() as u32,
+                };
+
+                println!("Created Renderable for Entity {:?}", entity);
+                (entity, renderable)
+            })
+            .collect();
+
+        for (entity, renderable) in new_renderables {
+            world.entity_mut(entity).insert(renderable);
+        }
+    }
 }
 
 impl Layer for RenderLayer {
@@ -162,7 +201,6 @@ impl Layer for RenderLayer {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        // command buffer
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -192,26 +230,15 @@ impl Layer for RenderLayer {
             });
 
             let mut world = context.world.lock().unwrap();
-            for mesh in world.query::<&Mesh>().iter(&world) {
-                let vertex_buffer =
-                    self.device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Vertex Buffer"),
-                            contents: bytemuck::cast_slice(mesh.vertices.as_slice()),
-                            usage: wgpu::BufferUsages::VERTEX,
-                        });
 
-                let index_buffer =
-                    self.device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("Index Buffer"),
-                            contents: bytemuck::cast_slice(mesh.indices.as_slice()),
-                            usage: wgpu::BufferUsages::INDEX,
-                        });
+            // Process new meshes
+            self.process_new_meshes(&mut world);
 
+            // Render all meshes
+            for (mesh, renderable) in world.query::<(&Mesh, &Renderable)>().iter(&world) {
                 render_pass.set_pipeline(&self.render_pipeline);
-                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                render_pass.set_index_buffer(index_buffer.slice(..), index_format());
+                render_pass.set_vertex_buffer(0, renderable.vertex_buffer.slice(..));
+                render_pass.set_index_buffer(renderable.index_buffer.slice(..), index_format());
                 render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
             }
         };

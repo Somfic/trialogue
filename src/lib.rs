@@ -1,7 +1,4 @@
-use bevy_ecs::{
-    bundle::Bundle,
-    world::{EntityWorldMut, World},
-};
+use bevy_ecs::{bundle::Bundle, world::World};
 use std::sync::{Arc, Mutex};
 use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
 
@@ -118,6 +115,8 @@ impl Application {
             layer.frame(&context)?;
         }
 
+        self.world.lock().unwrap().clear_trackers();
+
         Ok(())
     }
 
@@ -130,11 +129,10 @@ impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let window_attributes = Window::default_attributes();
         let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-        let world = Arc::new(Mutex::new(World::new()));
 
         let context = LayerContext {
             window: window.clone(),
-            world: world.clone(),
+            world: self.world.clone(),
         };
 
         let layers: Vec<Box<dyn Layer>> = self
