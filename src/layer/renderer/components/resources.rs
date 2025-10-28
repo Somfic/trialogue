@@ -5,3 +5,6 @@ pub struct GpuDevice(pub wgpu::Device);
 
 #[derive(Resource)]
 pub struct GpuQueue(pub wgpu::Queue);
+
+#[derive(Resource)]
+pub struct TextureBindGroupLayout(pub wgpu::BindGroupLayout);

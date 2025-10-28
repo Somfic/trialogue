@@ -1,29 +1,29 @@
 use trialogue::{
     ApplicationBuilder, Result,
-    layer::renderer::{Index, Mesh, Vertex},
+    layer::renderer::{Index, Mesh, Texture, Vertex},
 };
 use winit::event_loop::EventLoop;
 
 const VERTICES: &[Vertex] = &[
     Vertex {
         position: [-0.0868241, 0.49240386, 0.0],
-        color: [0.5, 0.0, 0.5],
+        uv: [0.4131759, 0.00759614],
     }, // A
     Vertex {
         position: [-0.49513406, 0.06958647, 0.0],
-        color: [0.5, 0.0, 0.5],
+        uv: [0.0048659444, 0.43041354],
     }, // B
     Vertex {
         position: [-0.21918549, -0.44939706, 0.0],
-        color: [0.5, 0.0, 0.5],
+        uv: [0.28081453, 0.949397],
     }, // C
     Vertex {
         position: [0.35966998, -0.3473291, 0.0],
-        color: [0.5, 0.0, 0.5],
+        uv: [0.85967, 0.84732914],
     }, // D
     Vertex {
         position: [0.44147372, 0.2347359, 0.0],
-        color: [0.5, 0.0, 0.5],
+        uv: [0.9414737, 0.2652641],
     }, // E
 ];
 
@@ -35,10 +35,15 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::with_user_event().build()?;
 
     let mut app = ApplicationBuilder::new().build();
-    app.spawn((Mesh {
-        vertices: VERTICES.to_vec(),
-        indices: INDICES.to_vec(),
-    },));
+    app.spawn((
+        Mesh {
+            vertices: VERTICES.to_vec(),
+            indices: INDICES.to_vec(),
+        },
+        Texture {
+            bytes: include_bytes!("cat.png").to_vec(),
+        },
+    ));
 
     event_loop.run_app(&mut app)?;
 

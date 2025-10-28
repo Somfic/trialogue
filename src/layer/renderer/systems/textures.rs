@@ -2,17 +2,19 @@ use bevy_ecs::prelude::*;
 
 use crate::layer::renderer::{
     GpuQueue,
-    components::{GpuDevice, GpuTexture, Texture},
+    components::{GpuDevice, GpuTexture, Texture, TextureBindGroupLayout},
 };
 
 pub fn initialize_texture_buffers(
     mut commands: Commands,
     device: Res<GpuDevice>,
     queue: Res<GpuQueue>,
+    texture_bind_group_layout: Res<TextureBindGroupLayout>,
     texture_query: Query<(Entity, &Texture), Without<GpuTexture>>,
 ) {
     let device = &device.0;
     let queue = &queue.0;
+    let texture_bind_group_layout = &texture_bind_group_layout.0;
 
     for (entity, texture) in texture_query.iter() {
         let image = image::load_from_memory(&texture.bytes).unwrap();
@@ -55,7 +57,38 @@ pub fn initialize_texture_buffers(
             texture_size,
         );
 
-        commands.entity(entity).insert(GpuTexture { texture });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"), // todo: label
+        });
+
+        commands.entity(entity).insert(GpuTexture {
+            texture,
+            view,
+            sampler,
+            bind_group,
+        });
 
         log::debug!("Created texture buffer")
     }

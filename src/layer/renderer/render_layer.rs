@@ -2,7 +2,7 @@ use bevy_ecs::schedule::Schedule;
 
 use crate::layer::renderer::{
     Vertex,
-    components::{GpuDevice, GpuMesh, GpuQueue, GpuTexture, Mesh},
+    components::{GpuDevice, GpuMesh, GpuQueue, GpuTexture, Mesh, TextureBindGroupLayout},
     index_format,
     systems::{initialize_mesh_buffers, initialize_texture_buffers},
 };
@@ -57,12 +57,37 @@ impl RenderLayer {
         }))
         .unwrap();
 
-        // Insert GPU resources into the ECS world for systems to use
-        // Cloning device and queue is fine - they're just Arc handles internally
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        // This should match the filterable field of the
+                        // corresponding Texture entry above.
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        // ecs resources
         {
             let mut world = context.world.lock().unwrap();
             world.insert_resource(GpuDevice(device.clone()));
             world.insert_resource(GpuQueue(queue.clone()));
+            world.insert_resource(TextureBindGroupLayout(texture_bind_group_layout.clone()));
         }
 
         // canvas config
@@ -85,11 +110,11 @@ impl RenderLayer {
         };
 
         // shaders
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        let shader = device.create_shader_module(wgpu::include_wgsl!("../../shaders/shader.wgsl"));
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -205,6 +230,7 @@ impl Layer for RenderLayer {
                 world.query::<(&Mesh, &GpuMesh, &GpuTexture)>().iter(&world)
             {
                 render_pass.set_pipeline(&self.render_pipeline);
+                render_pass.set_bind_group(0, Some(&texture.bind_group), &[]);
                 render_pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(gpu_mesh.index_buffer.slice(..), index_format());
                 render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
