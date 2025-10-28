@@ -1,5 +1,5 @@
 use bevy_ecs::schedule::Schedule;
-use trialogue::layer::renderer::{Mesh, Transform};
+use trialogue::layer::renderer::{Mesh, Time, Transform};
 use trialogue::prelude::*;
 use trialogue::{Layer, LayerContext};
 
@@ -16,9 +16,10 @@ impl SandboxLayer {
     }
 }
 
-fn rotate(mut query: Query<(&mut Transform, &Mesh)>) {
+fn rotate(time: Res<Time>, mut query: Query<(&mut Transform, &Mesh)>) {
     for (mut transform, _mesh) in query.iter_mut() {
-        let delta = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.01);
+        let dt = time.0.as_secs_f32();
+        let delta = UnitQuaternion::from_euler_angles(0.0, 0.0, 1.0 * dt);
         let current = UnitQuaternion::from_quaternion(transform.rotation);
         transform.rotation = (current * delta).into_inner();
     }
@@ -30,7 +31,10 @@ impl Layer for SandboxLayer {
         context: &trialogue::LayerContext,
     ) -> std::result::Result<(), wgpu::SurfaceError> {
         let mut world = context.world.lock().unwrap();
+        world.insert_resource(Time(context.delta_time));
+
         self.schedule.run(&mut world);
+
         Ok(())
     }
 

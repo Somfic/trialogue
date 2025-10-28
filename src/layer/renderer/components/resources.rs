@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy_ecs::prelude::*;
 
 #[derive(Resource)]
@@ -14,3 +16,6 @@ pub struct CameraBindGroupLayout(pub wgpu::BindGroupLayout);
 
 #[derive(Resource)]
 pub struct TransformBindGroupLayout(pub wgpu::BindGroupLayout);
+
+#[derive(Resource)]
+pub struct Time(pub Duration);

@@ -1,5 +1,6 @@
 use bevy_ecs::{bundle::Bundle, world::World};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
 
 pub type Result<T> = anyhow::Result<T>;
@@ -22,6 +23,7 @@ pub trait LayerFactory: 'static {
 pub struct LayerContext {
     pub window: Arc<Window>,
     pub world: Arc<Mutex<World>>,
+    pub delta_time: Duration,
 }
 
 pub enum LayerEvent {
@@ -98,6 +100,7 @@ pub struct Application {
 pub struct ApplicationState {
     window: Arc<Window>,
     layers: Vec<Box<dyn Layer>>,
+    last_frame_time: Instant,
 }
 
 impl Application {
@@ -107,9 +110,14 @@ impl Application {
             None => return Ok(()),
         };
 
+        let now = Instant::now();
+        let delta_time = now.duration_since(state.last_frame_time);
+        state.last_frame_time = now;
+
         let context = LayerContext {
             window: state.window.clone(),
             world: self.world.clone(),
+            delta_time,
         };
 
         for layer in &mut state.layers {
@@ -134,6 +142,7 @@ impl ApplicationHandler for Application {
         let context = LayerContext {
             window: window.clone(),
             world: self.world.clone(),
+            delta_time: Duration::ZERO,
         };
 
         let layers: Vec<Box<dyn Layer>> = self
@@ -142,7 +151,11 @@ impl ApplicationHandler for Application {
             .map(|factory| factory.create(&context))
             .collect();
 
-        self.state = Some(ApplicationState { window, layers });
+        self.state = Some(ApplicationState {
+            window,
+            layers,
+            last_frame_time: Instant::now(),
+        });
     }
 
     fn suspended(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -150,6 +163,7 @@ impl ApplicationHandler for Application {
             let context = LayerContext {
                 window: state.window.clone(),
                 world: self.world.clone(),
+                delta_time: Duration::ZERO,
             };
 
             for layer in &mut state.layers {
@@ -183,6 +197,7 @@ impl ApplicationHandler for Application {
             let context = LayerContext {
                 window: state.window.clone(),
                 world: self.world.clone(),
+                delta_time: Duration::ZERO,
             };
 
             for layer in &mut state.layers {
