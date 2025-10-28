@@ -276,24 +276,24 @@ impl Layer for RenderLayer {
 
             // get camera
             let camera_bind_group = world
-                .query::<(&GpuCamera)>()
+                .query::<&GpuCamera>()
                 .iter(&world)
                 .next()
                 .unwrap()
                 .bind_group
                 .clone();
 
-            for (mesh, gpu_mesh, texture, transform) in world
-                .query::<(&Mesh, &GpuMesh, &GpuTexture, &GpuTransform)>()
+            for (mesh, texture, transform) in world
+                .query::<(&GpuMesh, &GpuTexture, &GpuTransform)>()
                 .iter(&world)
             {
                 render_pass.set_pipeline(&self.render_pipeline);
                 render_pass.set_bind_group(0, Some(&texture.bind_group), &[]);
                 render_pass.set_bind_group(1, &camera_bind_group, &[]);
                 render_pass.set_bind_group(2, &transform.bind_group, &[]);
-                render_pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
-                render_pass.set_index_buffer(gpu_mesh.index_buffer.slice(..), index_format());
-                render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                render_pass.set_index_buffer(mesh.index_buffer.slice(..), index_format());
+                render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
             }
         };
 
