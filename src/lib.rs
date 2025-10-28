@@ -190,4 +190,10 @@ impl ApplicationHandler for Application {
             }
         }
     }
+
+    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        if let Some(state) = &self.state {
+            state.window.request_redraw();
+        }
+    }
 }

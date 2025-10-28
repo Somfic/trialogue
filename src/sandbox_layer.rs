@@ -17,9 +17,10 @@ impl SandboxLayer {
 }
 
 fn rotate(mut query: Query<(&mut Transform, &Mesh)>) {
-    for (mut transform, mesh) in query.iter_mut() {
-        transform.rotation += *UnitQuaternion::from_euler_angles(1.0, 0.0, 0.0);
-        println!("Rotation: {:?}", transform.rotation);
+    for (mut transform, _mesh) in query.iter_mut() {
+        let delta = UnitQuaternion::from_euler_angles(0.0, 0.0, 0.01);
+        let current = UnitQuaternion::from_quaternion(transform.rotation);
+        transform.rotation = (current * delta).into_inner();
     }
 }
 
@@ -28,16 +29,10 @@ impl Layer for SandboxLayer {
         &mut self,
         context: &trialogue::LayerContext,
     ) -> std::result::Result<(), wgpu::SurfaceError> {
-        {
-            let mut world = context.world.lock().unwrap();
-            self.schedule.run(&mut world);
-        }
-
-        // Request next frame for continuous animation
-        context.window.request_redraw();
-
+        let mut world = context.world.lock().unwrap();
+        self.schedule.run(&mut world);
         Ok(())
     }
 
-    fn detach(&mut self, context: &trialogue::LayerContext) {}
+    fn detach(&mut self, _context: &trialogue::LayerContext) {}
 }
