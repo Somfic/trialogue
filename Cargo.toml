@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+wgpu = { version = "27.0.1" }
 anyhow = "1.0.100"
-bevy_ecs = "0.17.2"
+bevy_ecs = { version = "0.17.2" }
 bytemuck = { version = "1.24.0", features = ["derive"] }
 env_logger = "0.11.8"
 glam = "0.30.8"
@@ -14,6 +15,6 @@ image = { version = "0.25.8", default-features = false, features = [
     "jpeg",
 ] }
 log = "0.4.28"
+nalgebra = { version = "0.34.1", features = ["bytemuck"] }
 pollster = "0.4.0"
-wgpu = "27.0.1"
 winit = "0.30.12"

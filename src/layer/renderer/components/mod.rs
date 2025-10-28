@@ -1,7 +1,9 @@
+mod camera;
 mod mesh;
 mod resources;
-mod textures;
+mod texture;
 
+pub use camera::*;
 pub use mesh::*;
 pub use resources::*;
-pub use textures::*;
+pub use texture::*;

@@ -1,10 +1,12 @@
 use bevy_ecs::schedule::Schedule;
 
 use crate::layer::renderer::{
-    Vertex,
-    components::{GpuDevice, GpuMesh, GpuQueue, GpuTexture, Mesh, TextureBindGroupLayout},
+    CameraBindGroupLayout, Vertex,
+    components::{
+        GpuCamera, GpuDevice, GpuMesh, GpuQueue, GpuTexture, Mesh, TextureBindGroupLayout,
+    },
     index_format,
-    systems::{initialize_mesh_buffers, initialize_texture_buffers},
+    systems::{initialize_camera_buffers, initialize_mesh_buffers, initialize_texture_buffers},
 };
 use crate::{Layer, LayerContext};
 
@@ -82,12 +84,28 @@ impl RenderLayer {
                 label: Some("texture_bind_group_layout"),
             });
 
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
+
         // ecs resources
         {
             let mut world = context.world.lock().unwrap();
             world.insert_resource(GpuDevice(device.clone()));
             world.insert_resource(GpuQueue(queue.clone()));
             world.insert_resource(TextureBindGroupLayout(texture_bind_group_layout.clone()));
+            world.insert_resource(CameraBindGroupLayout(camera_bind_group_layout.clone()));
         }
 
         // canvas config
@@ -114,7 +132,7 @@ impl RenderLayer {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout],
+                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -158,7 +176,11 @@ impl RenderLayer {
 
         // ecs
         let mut schedule = Schedule::default();
-        schedule.add_systems((initialize_mesh_buffers, initialize_texture_buffers));
+        schedule.add_systems((
+            initialize_mesh_buffers,
+            initialize_texture_buffers,
+            initialize_camera_buffers,
+        ));
 
         Self {
             surface,
@@ -189,6 +211,7 @@ impl Layer for RenderLayer {
             return Ok(());
         }
 
+        // todo: mode surface to the camera
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -226,11 +249,21 @@ impl Layer for RenderLayer {
 
             self.schedule.run(&mut world);
 
+            // get camera
+            let camera_bind_group = world
+                .query::<(&GpuCamera)>()
+                .iter(&world)
+                .next()
+                .unwrap()
+                .bind_group
+                .clone();
+
             for (mesh, gpu_mesh, texture) in
                 world.query::<(&Mesh, &GpuMesh, &GpuTexture)>().iter(&world)
             {
                 render_pass.set_pipeline(&self.render_pipeline);
                 render_pass.set_bind_group(0, Some(&texture.bind_group), &[]);
+                render_pass.set_bind_group(1, &camera_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(gpu_mesh.index_buffer.slice(..), index_format());
                 render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);

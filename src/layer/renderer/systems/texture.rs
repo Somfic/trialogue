@@ -1,4 +1,4 @@
-use bevy_ecs::prelude::*;
+use crate::prelude::*;
 
 use crate::layer::renderer::{
     GpuQueue,
@@ -9,14 +9,14 @@ pub fn initialize_texture_buffers(
     mut commands: Commands,
     device: Res<GpuDevice>,
     queue: Res<GpuQueue>,
-    texture_bind_group_layout: Res<TextureBindGroupLayout>,
-    texture_query: Query<(Entity, &Texture), Without<GpuTexture>>,
+    bind_group_layout: Res<TextureBindGroupLayout>,
+    query: Query<(Entity, &Texture), Without<GpuTexture>>,
 ) {
     let device = &device.0;
     let queue = &queue.0;
-    let texture_bind_group_layout = &texture_bind_group_layout.0;
+    let bind_group_layout = &bind_group_layout.0;
 
-    for (entity, texture) in texture_query.iter() {
+    for (entity, texture) in query.iter() {
         let image = image::load_from_memory(&texture.bytes).unwrap();
         let image = image.to_rgba8();
 
@@ -69,7 +69,7 @@ pub fn initialize_texture_buffers(
         });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
+            layout: &bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,

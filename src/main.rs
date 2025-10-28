@@ -1,6 +1,7 @@
+use nalgebra::{Point, Point3, Vector3};
 use trialogue::{
     ApplicationBuilder, Result,
-    layer::renderer::{Index, Mesh, Texture, Vertex},
+    layer::renderer::{Camera, Index, Mesh, Texture, Transform, Vertex},
 };
 use winit::event_loop::EventLoop;
 
@@ -42,6 +43,20 @@ fn main() -> Result<()> {
         },
         Texture {
             bytes: include_bytes!("cat.png").to_vec(),
+        },
+    ));
+
+    app.spawn((
+        Transform {
+            position: Point3::new(10.0, 0.0, 10.0),
+            up: Vector3::new(0.0, 1.0, 0.0),
+        },
+        Camera {
+            aspect: 1.0,
+            fovy: 1.0,
+            target: Point3::new(0.0, 0.0, 0.0),
+            zfar: 100.0,
+            znear: 0.0001,
         },
     ));
 

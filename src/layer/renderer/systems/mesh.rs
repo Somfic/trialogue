@@ -6,9 +6,9 @@ use crate::layer::renderer::components::{GpuDevice, GpuMesh, Mesh};
 pub fn initialize_mesh_buffers(
     mut commands: Commands,
     device: Res<GpuDevice>,
-    mesh_query: Query<(Entity, &Mesh), Without<GpuMesh>>,
+    query: Query<(Entity, &Mesh), Without<GpuMesh>>,
 ) {
-    for (entity, mesh) in mesh_query.iter() {
+    for (entity, mesh) in query.iter() {
         let vertex_buffer = device
             .0
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
