@@ -2,9 +2,9 @@ use bevy_ecs::schedule::Schedule;
 
 use crate::layer::renderer::{
     Vertex,
-    components::{GpuDevice, GpuMesh, GpuQueue, Mesh},
+    components::{GpuDevice, GpuMesh, GpuQueue, GpuTexture, Mesh},
     index_format,
-    systems::initialize_mesh_buffers,
+    systems::{initialize_mesh_buffers, initialize_texture_buffers},
 };
 use crate::{Layer, LayerContext};
 
@@ -133,7 +133,7 @@ impl RenderLayer {
 
         // ecs
         let mut schedule = Schedule::default();
-        schedule.add_systems(initialize_mesh_buffers);
+        schedule.add_systems((initialize_mesh_buffers, initialize_texture_buffers));
 
         Self {
             surface,
@@ -201,7 +201,9 @@ impl Layer for RenderLayer {
 
             self.schedule.run(&mut world);
 
-            for (mesh, gpu_mesh) in world.query::<(&Mesh, &GpuMesh)>().iter(&world) {
+            for (mesh, gpu_mesh, texture) in
+                world.query::<(&Mesh, &GpuMesh, &GpuTexture)>().iter(&world)
+            {
                 render_pass.set_pipeline(&self.render_pipeline);
                 render_pass.set_vertex_buffer(0, gpu_mesh.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(gpu_mesh.index_buffer.slice(..), index_format());

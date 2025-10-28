@@ -5,6 +5,7 @@ use winit::{application::ApplicationHandler, event::WindowEvent, window::Window}
 pub type Result<T> = anyhow::Result<T>;
 
 pub mod layer;
+pub mod prelude;
 
 pub use layer::renderer::RenderLayer;
 
