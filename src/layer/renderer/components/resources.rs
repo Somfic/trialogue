@@ -11,3 +11,6 @@ pub struct TextureBindGroupLayout(pub wgpu::BindGroupLayout);
 
 #[derive(Resource)]
 pub struct CameraBindGroupLayout(pub wgpu::BindGroupLayout);
+
+#[derive(Resource)]
+pub struct TransformBindGroupLayout(pub wgpu::BindGroupLayout);

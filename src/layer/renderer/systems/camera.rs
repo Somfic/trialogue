@@ -1,6 +1,5 @@
 use wgpu::util::DeviceExt;
 
-use crate::layer::renderer::GpuQueue;
 use crate::layer::renderer::components::{Camera, CameraBindGroupLayout, GpuCamera, Transform};
 use crate::prelude::*;
 
@@ -17,21 +16,18 @@ const OPENGL_TO_WGPU: Matrix4<f32> = Matrix4::new(
 pub fn initialize_camera_buffers(
     mut commands: Commands,
     device: Res<GpuDevice>,
-    queue: Res<GpuQueue>,
     bind_group_layout: Res<CameraBindGroupLayout>,
     query: Query<(Entity, &Camera, &Transform), Without<GpuCamera>>,
 ) {
     let device = &device.0;
-    let queue = &queue.0;
     let bind_group_layout = &bind_group_layout.0;
 
     for (entity, camera, transform) in query.iter() {
-        let view = Isometry3::look_at_rh(
-            &transform.position,
-            &camera.target,
-            &Unit::new_normalize(transform.up),
-        )
-        .to_homogeneous();
+        // compute the up vector from the rotation quaternion
+        let rotation = nalgebra::UnitQuaternion::from_quaternion(transform.rotation);
+        let up = rotation * Vector3::y_axis();
+
+        let view = Isometry3::look_at_rh(&transform.position, &camera.target, &up).to_homogeneous();
 
         // todo: store this in own component so we dont have to do this every time
         let proj = OPENGL_TO_WGPU

@@ -1,12 +1,6 @@
 use crate::prelude::*;
 
 #[derive(Component)]
-pub struct Transform {
-    pub position: Point3<f32>,
-    pub up: Vector3<f32>,
-}
-
-#[derive(Component)]
 pub struct Camera {
     pub target: Point3<f32>,
     pub aspect: f32,

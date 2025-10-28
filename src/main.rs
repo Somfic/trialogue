@@ -1,9 +1,11 @@
-use nalgebra::{Point, Point3, Vector3};
+use nalgebra::{Point, Point3, Quaternion, Vector3};
 use trialogue::{
     ApplicationBuilder, Result,
     layer::renderer::{Camera, Index, Mesh, Texture, Transform, Vertex},
 };
 use winit::event_loop::EventLoop;
+
+mod sandbox_layer;
 
 const VERTICES: &[Vertex] = &[
     Vertex {
@@ -35,8 +37,11 @@ fn main() -> Result<()> {
 
     let event_loop = EventLoop::with_user_event().build()?;
 
-    let mut app = ApplicationBuilder::new().build();
+    let mut app = ApplicationBuilder::new()
+        .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
+        .build();
     app.spawn((
+        Transform::default(),
         Mesh {
             vertices: VERTICES.to_vec(),
             indices: INDICES.to_vec(),
@@ -49,7 +54,8 @@ fn main() -> Result<()> {
     app.spawn((
         Transform {
             position: Point3::new(10.0, 0.0, 10.0),
-            up: Vector3::new(0.0, 1.0, 0.0),
+            rotation: Quaternion::identity(),
+            scale: Vector3::identity(),
         },
         Camera {
             aspect: 1.0,
