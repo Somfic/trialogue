@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::layer::renderer::{
+use crate::layers::renderer::{
     GpuQueue,
     components::{GpuDevice, GpuTexture, Texture, TextureBindGroupLayout},
 };

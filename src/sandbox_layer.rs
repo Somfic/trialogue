@@ -1,5 +1,5 @@
 use bevy_ecs::schedule::Schedule;
-use trialogue::layer::renderer::{Mesh, Time, Transform};
+use trialogue::layers::renderer::{Mesh, Time, Transform};
 use trialogue::prelude::*;
 use trialogue::{Layer, LayerContext};
 

@@ -5,10 +5,10 @@ use winit::{application::ApplicationHandler, event::WindowEvent, window::Window}
 
 pub type Result<T> = anyhow::Result<T>;
 
-pub mod layer;
+pub mod layers;
 pub mod prelude;
 
-pub use layer::renderer::RenderLayer;
+pub use layers::renderer::RenderLayer;
 
 pub trait Layer: 'static {
     fn frame(&mut self, context: &LayerContext) -> std::result::Result<(), wgpu::SurfaceError>;
@@ -37,7 +37,7 @@ pub struct ApplicationBuilder {
 impl ApplicationBuilder {
     pub fn new() -> Self {
         Self {
-            layer_factories: vec![Box::new(crate::RenderLayerFactory)],
+            layer_factories: Vec::new(),
         }
     }
 

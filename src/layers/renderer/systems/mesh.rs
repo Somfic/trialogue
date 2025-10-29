@@ -1,7 +1,7 @@
 use bevy_ecs::prelude::*;
 use wgpu::util::DeviceExt;
 
-use crate::layer::renderer::components::{GpuDevice, GpuMesh, Mesh};
+use crate::layers::renderer::components::{GpuDevice, GpuMesh, Mesh};
 
 pub fn initialize_mesh_buffers(
     mut commands: Commands,

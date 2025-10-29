@@ -1,7 +1,7 @@
 use wgpu::util::DeviceExt;
 
 use crate::{
-    layer::renderer::{GpuDevice, GpuQueue, GpuTransform, Transform, TransformBindGroupLayout},
+    layers::renderer::{GpuDevice, GpuQueue, GpuTransform, Transform, TransformBindGroupLayout},
     prelude::*,
 };
 

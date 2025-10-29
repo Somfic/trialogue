@@ -1,7 +1,10 @@
-use nalgebra::{Point, Point3, Quaternion, Vector3};
+use nalgebra::{Point3, Quaternion, Vector3};
 use trialogue::{
     ApplicationBuilder, Result,
-    layer::renderer::{Camera, Index, Mesh, Texture, Transform, Vertex},
+    layers::{
+        self,
+        renderer::{Camera, Index, Mesh, RenderTarget, Texture, Transform, Vertex},
+    },
 };
 use winit::event_loop::EventLoop;
 
@@ -38,7 +41,10 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::with_user_event().build()?;
 
     let mut app = ApplicationBuilder::new()
+        .add_layer(|context| Box::new(layers::renderer::DeviceLayer::new(context)))
+        .add_layer(|context| Box::new(layers::renderer::RenderLayer::new(context)))
         .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
+        .add_layer(|context| Box::new(layers::renderer::WindowLayer::new(context)))
         .build();
     app.spawn((
         Transform::default(),
@@ -51,6 +57,7 @@ fn main() -> Result<()> {
         },
     ));
 
+    // Note: aspect ratio will be automatically set to match window dimensions
     app.spawn((
         Transform {
             position: Point3::new(10.0, 0.0, 10.0),
@@ -58,12 +65,13 @@ fn main() -> Result<()> {
             scale: Vector3::identity(),
         },
         Camera {
-            aspect: 1.0,
+            is_main: true,
             fovy: 1.0,
             target: Point3::new(0.0, 0.0, 0.0),
             zfar: 100.0,
             znear: 0.0001,
         },
+        RenderTarget {},
     ));
 
     event_loop.run_app(&mut app)?;
