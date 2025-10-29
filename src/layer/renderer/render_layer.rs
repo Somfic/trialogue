@@ -2,9 +2,7 @@ use bevy_ecs::schedule::Schedule;
 
 use crate::layer::renderer::{
     CameraBindGroupLayout, GpuTransform, TransformBindGroupLayout, Vertex,
-    components::{
-        GpuCamera, GpuDevice, GpuMesh, GpuQueue, GpuTexture, Mesh, TextureBindGroupLayout,
-    },
+    components::{GpuCamera, GpuDevice, GpuMesh, GpuQueue, GpuTexture, TextureBindGroupLayout},
     index_format,
     systems::{
         initialize_camera_buffers, initialize_mesh_buffers, initialize_texture_buffers,
