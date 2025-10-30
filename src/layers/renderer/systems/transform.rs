@@ -7,7 +7,7 @@ use crate::{
 
 fn compute_model_matrix(transform: &Transform) -> nalgebra::Matrix4<f32> {
     let translation = nalgebra::Matrix4::new_translation(&transform.position.coords);
-    let rotation = nalgebra::UnitQuaternion::from_quaternion(transform.rotation).to_homogeneous();
+    let rotation = transform.rotation.to_homogeneous();
     let scale = nalgebra::Matrix4::new_nonuniform_scaling(&transform.scale);
     translation * rotation * scale
 }

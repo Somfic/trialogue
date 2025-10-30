@@ -2,7 +2,7 @@ use wgpu::util::DeviceExt;
 
 use crate::layers::renderer::components::{
     Camera, CameraBindGroupLayout, GpuCamera, GpuDevice, GpuQueue, GpuRenderTarget, RenderTarget,
-    Transform, WindowSize,
+    WindowSize,
 };
 use crate::prelude::*;
 
@@ -25,8 +25,7 @@ pub fn initialize_camera_buffers(
 
     for (entity, camera, transform) in query.iter() {
         // compute the up vector from the rotation quaternion
-        let rotation = nalgebra::UnitQuaternion::from_quaternion(transform.rotation);
-        let up = rotation * Vector3::y_axis();
+        let up = transform.rotation * Vector3::y_axis();
 
         let view = Isometry3::look_at_rh(&transform.position, &camera.target, &up).to_homogeneous();
 
@@ -134,14 +133,13 @@ pub fn update_render_targets(
 
 pub fn update_camera_buffers(
     queue: Res<GpuQueue>,
-    query: Query<(&Camera, &Transform, &GpuCamera), Changed<GpuCamera>>,
+    query: Query<(&Camera, &Transform, &GpuCamera), Or<(Changed<GpuCamera>, Changed<Transform>)>>,
 ) {
     let queue = &queue.0;
 
     for (camera, transform, gpu_camera) in query.iter() {
         // Compute the up vector from the rotation quaternion
-        let rotation = nalgebra::UnitQuaternion::from_quaternion(transform.rotation);
-        let up = rotation * Vector3::y_axis();
+        let up = transform.rotation * Vector3::y_axis();
 
         let view = Isometry3::look_at_rh(&transform.position, &camera.target, &up).to_homogeneous();
 

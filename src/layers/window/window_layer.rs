@@ -1,5 +1,7 @@
 use crate::{
-    layers::renderer::{Camera, GpuAdapter, GpuDevice, GpuQueue, GpuRenderTarget, GpuSurface, WindowSize},
+    layers::renderer::{
+        Camera, GpuAdapter, GpuDevice, GpuQueue, GpuRenderTarget, GpuSurface, WindowSize,
+    },
     prelude::*,
 };
 

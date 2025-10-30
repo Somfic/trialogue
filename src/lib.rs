@@ -1,8 +1,7 @@
-use bevy_ecs::{bundle::Bundle, world::World};
+use crate::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
-
 pub type Result<T> = anyhow::Result<T>;
 
 pub mod layers;
@@ -129,7 +128,13 @@ impl Application {
         Ok(())
     }
 
-    pub fn spawn<B: Bundle>(&mut self, bundle: B) {
+    pub fn spawn<B: Bundle>(&mut self, label: impl Into<String>, bundle: B) {
+        let bundle = (
+            Tag {
+                label: label.into(),
+            },
+            bundle,
+        );
         self.world.lock().unwrap().spawn(bundle);
     }
 }

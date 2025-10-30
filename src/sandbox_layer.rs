@@ -20,8 +20,7 @@ fn rotate(time: Res<Time>, mut query: Query<(&mut Transform, &Mesh)>) {
     for (mut transform, _mesh) in query.iter_mut() {
         let dt = time.0.as_secs_f32();
         let delta = UnitQuaternion::from_euler_angles(0.0, 0.0, 1.0 * dt);
-        let current = UnitQuaternion::from_quaternion(transform.rotation);
-        transform.rotation = (current * delta).into_inner();
+        transform.rotation = transform.rotation * delta;
     }
 }
 

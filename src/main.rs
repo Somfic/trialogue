@@ -1,4 +1,4 @@
-use nalgebra::{Point3, Quaternion, Vector3};
+use trialogue::prelude::*;
 use trialogue::{
     ApplicationBuilder, Result,
     layers::{
@@ -41,38 +41,46 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::with_user_event().build()?;
 
     let mut app = ApplicationBuilder::new()
-        .add_layer(|context| Box::new(layers::renderer::DeviceLayer::new(context)))
-        .add_layer(|context| Box::new(layers::renderer::RenderLayer::new(context)))
-        .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
-        .add_layer(|context| Box::new(layers::renderer::WindowLayer::new(context)))
+        .add_layer(|context| Box::new(layers::DeviceLayer::new(context)))
+        .add_layer(|context| Box::new(layers::RenderLayer::new(context)))
+        // .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
+        // Swap between WindowLayer and EditorLayer:
+        // .add_layer(|context| Box::new(layers::WindowLayer::new(context)))
+        .add_layer(|context| Box::new(layers::EditorLayer::new(context)))
         .build();
-    app.spawn((
-        Transform::default(),
-        Mesh {
-            vertices: VERTICES.to_vec(),
-            indices: INDICES.to_vec(),
-        },
-        Texture {
-            bytes: include_bytes!("cat.png").to_vec(),
-        },
-    ));
+    app.spawn(
+        "Cat",
+        (
+            Transform::default(),
+            Mesh {
+                vertices: VERTICES.to_vec(),
+                indices: INDICES.to_vec(),
+            },
+            Texture {
+                bytes: include_bytes!("cat.png").to_vec(),
+            },
+        ),
+    );
 
     // Note: aspect ratio will be automatically set to match window dimensions
-    app.spawn((
-        Transform {
-            position: Point3::new(10.0, 0.0, 10.0),
-            rotation: Quaternion::identity(),
-            scale: Vector3::identity(),
-        },
-        Camera {
-            is_main: true,
-            fovy: 1.0,
-            target: Point3::new(0.0, 0.0, 0.0),
-            zfar: 100.0,
-            znear: 0.0001,
-        },
-        RenderTarget {},
-    ));
+    app.spawn(
+        "Camera",
+        (
+            Transform {
+                position: Point3::new(10.0, 0.0, 10.0),
+                rotation: UnitQuaternion::identity(),
+                scale: Vector3::identity(),
+            },
+            Camera {
+                is_main: true,
+                fovy: 1.0,
+                target: Point3::new(0.0, 0.0, 0.0),
+                zfar: 100.0,
+                znear: 0.0001,
+            },
+            RenderTarget {},
+        ),
+    );
 
     event_loop.run_app(&mut app)?;
 
