@@ -1,11 +1,5 @@
-use crate::{
-    layers::renderer::{
-        Camera, GpuAdapter, GpuDevice, GpuQueue, GpuRenderTarget, GpuSurface, WindowSize,
-    },
-    prelude::*,
-};
-
 use super::{editor_state::EditorState, editor_ui};
+use crate::prelude::*;
 
 pub struct EditorLayer {
     surface: wgpu::Surface<'static>,

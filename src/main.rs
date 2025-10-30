@@ -1,11 +1,5 @@
-use trialogue::prelude::*;
-use trialogue::{
-    ApplicationBuilder, Result,
-    layers::{
-        self,
-        renderer::{Camera, Index, Mesh, RenderTarget, Texture, Transform, Vertex},
-    },
-};
+use trialogue::{ApplicationBuilder, Result};
+use trialogue::{layers, prelude::*};
 use winit::event_loop::EventLoop;
 
 mod sandbox_layer;

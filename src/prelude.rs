@@ -1,6 +1,6 @@
 pub use crate::Layer;
 pub use crate::LayerContext;
-pub use crate::layers::renderer::components::*;
+pub use crate::components::*;
 pub use bevy_ecs::prelude::*;
 pub use nalgebra::Isometry3;
 pub use nalgebra::Matrix4;

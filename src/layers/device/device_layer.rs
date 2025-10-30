@@ -1,7 +1,4 @@
-use crate::{
-    layers::renderer::{GpuAdapter, GpuDevice, GpuQueue, GpuSurface, WindowSize},
-    prelude::*,
-};
+use crate::prelude::*;
 
 /// Layer that initializes the GPU device, queue, and surface.
 /// This must run before RenderLayer but doesn't need to do anything during frame rendering.

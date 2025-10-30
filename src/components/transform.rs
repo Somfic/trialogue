@@ -1,4 +1,4 @@
-use crate::{layers::renderer::Inspectable, prelude::*};
+use crate::prelude::*;
 
 #[derive(Component)]
 pub struct Transform {

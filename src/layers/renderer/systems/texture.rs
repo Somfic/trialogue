@@ -1,10 +1,5 @@
 use crate::prelude::*;
 
-use crate::layers::renderer::{
-    GpuQueue,
-    components::{GpuDevice, GpuTexture, Texture, TextureBindGroupLayout},
-};
-
 pub fn initialize_texture_buffers(
     mut commands: Commands,
     device: Res<GpuDevice>,

@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
 pub type Result<T> = anyhow::Result<T>;
 
+pub mod components;
 pub mod layers;
 pub mod prelude;
 

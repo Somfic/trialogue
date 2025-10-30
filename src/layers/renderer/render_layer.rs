@@ -1,14 +1,9 @@
 use bevy_ecs::schedule::Schedule;
 
-use crate::layers::renderer::{
-    CameraBindGroupLayout, GpuRenderTarget, GpuTransform, TransformBindGroupLayout, Vertex,
-    components::{GpuCamera, GpuDevice, GpuMesh, GpuQueue, GpuTexture, TextureBindGroupLayout},
-    index_format,
-    systems::{
-        initialize_camera_buffers, initialize_mesh_buffers, initialize_render_targets,
-        initialize_texture_buffers, initialize_transform_buffers, update_camera_buffers,
-        update_render_targets, update_transform_buffers,
-    },
+use crate::layers::renderer::systems::{
+    initialize_camera_buffers, initialize_mesh_buffers, initialize_render_targets,
+    initialize_texture_buffers, initialize_transform_buffers, update_camera_buffers,
+    update_render_targets, update_transform_buffers,
 };
 use crate::prelude::*;
 

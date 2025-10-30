@@ -1,9 +1,4 @@
-use crate::{
-    layers::renderer::{
-        Camera, GpuAdapter, GpuDevice, GpuQueue, GpuRenderTarget, GpuSurface, WindowSize,
-    },
-    prelude::*,
-};
+use crate::prelude::*;
 
 pub struct WindowLayer {
     surface: wgpu::Surface<'static>,

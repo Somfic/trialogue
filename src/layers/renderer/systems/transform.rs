@@ -1,9 +1,5 @@
+use crate::prelude::*;
 use wgpu::util::DeviceExt;
-
-use crate::{
-    layers::renderer::{GpuDevice, GpuQueue, GpuTransform, Transform, TransformBindGroupLayout},
-    prelude::*,
-};
 
 fn compute_model_matrix(transform: &Transform) -> nalgebra::Matrix4<f32> {
     let translation = nalgebra::Matrix4::new_translation(&transform.position.coords);

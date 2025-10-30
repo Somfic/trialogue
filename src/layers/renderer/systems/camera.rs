@@ -1,10 +1,5 @@
-use wgpu::util::DeviceExt;
-
-use crate::layers::renderer::components::{
-    Camera, CameraBindGroupLayout, GpuCamera, GpuDevice, GpuQueue, GpuRenderTarget, RenderTarget,
-    WindowSize,
-};
 use crate::prelude::*;
+use wgpu::util::DeviceExt;
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU: Matrix4<f32> = Matrix4::new(

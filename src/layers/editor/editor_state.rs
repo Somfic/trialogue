@@ -1,4 +1,4 @@
-use crate::{layers::renderer::ComponentInspector, prelude::*};
+use crate::prelude::*;
 
 #[derive(Default)]
 pub struct EditorState {
@@ -10,7 +10,7 @@ impl EditorState {
     pub fn new() -> Self {
         Self {
             selected_entity: None,
-            component_inspector: crate::layers::renderer::create_component_inspector(),
+            component_inspector: create_component_inspector(),
         }
     }
 

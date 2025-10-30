@@ -6,8 +6,7 @@ mod resources;
 mod texture;
 mod transform;
 
-use crate::prelude::*;
-use bevy_ecs::component::Mutable;
+use bevy_ecs::{component::Mutable, prelude::*};
 pub use camera::*;
 pub use label::*;
 pub use mesh::*;

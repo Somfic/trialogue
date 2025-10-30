@@ -1,4 +1,3 @@
-use crate::layers::renderer::WindowSize;
 use crate::prelude::*;
 use std::sync::{Arc, Mutex};
 
