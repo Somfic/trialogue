@@ -2931,6 +2931,7 @@ dependencies = [
  "glam 0.30.9",
  "image",
  "log",
+ "naga",
  "nalgebra",
  "pollster",
  "wgpu",

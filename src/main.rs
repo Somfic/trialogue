@@ -36,25 +36,26 @@ fn main() -> Result<()> {
 
     let mut app = ApplicationBuilder::new()
         .add_layer(|context| Box::new(layers::DeviceLayer::new(context)))
-        .add_layer(|context| Box::new(layers::RenderLayer::new(context)))
+        .add_layer(|context| Box::new(layers::RaytracerLayer::new(context)))
         // .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
         // Swap between WindowLayer and EditorLayer:
         // .add_layer(|context| Box::new(layers::WindowLayer::new(context)))
         .add_layer(|context| Box::new(layers::EditorLayer::new(context)))
         .build();
-    app.spawn(
-        "Cat",
-        (
-            Transform::default(),
-            Mesh {
-                vertices: VERTICES.to_vec(),
-                indices: INDICES.to_vec(),
-            },
-            Texture {
-                bytes: include_bytes!("cat.png").to_vec(),
-            },
-        ),
-    );
+
+    // app.spawn(
+    //     "Cat",
+    //     (
+    //         Transform::default(),
+    //         Mesh {
+    //             vertices: VERTICES.to_vec(),
+    //             indices: INDICES.to_vec(),
+    //         },
+    //         Texture {
+    //             bytes: include_bytes!("cat.png").to_vec(),
+    //         },
+    //     ),
+    // );
 
     // Note: aspect ratio will be automatically set to match window dimensions
     app.spawn(
@@ -75,6 +76,98 @@ fn main() -> Result<()> {
             RenderTarget {},
         ),
     );
+
+    // Spawn spheres for the raytracer
+    app.spawn(
+        "Red Sphere",
+        (
+            Sphere {
+                color: [0.8, 0.3, 0.3],
+                material_type: 0, // Lambertian
+            },
+            Transform {
+                position: Point3::new(0.0, 0.0, 0.0),
+                rotation: UnitQuaternion::identity(),
+                scale: Vector3::new(1.0, 1.0, 1.0), // radius = scale.x
+            },
+        ),
+    );
+
+    app.spawn(
+        "Ground Plane",
+        (
+            Sphere {
+                color: [0.5, 0.5, 0.5],
+                material_type: 0, // Lambertian
+            },
+            Transform {
+                position: Point3::new(0.0, -1001.0, 0.0),
+                rotation: UnitQuaternion::identity(),
+                scale: Vector3::new(1000.0, 1000.0, 1000.0), // radius = scale.x
+            },
+        ),
+    );
+
+    app.spawn(
+        "Green Sphere",
+        (
+            Sphere {
+                color: [0.3, 0.8, 0.3],
+                material_type: 0,
+            },
+            Transform {
+                position: Point3::new(2.5, 0.5, -1.0),
+                rotation: UnitQuaternion::identity(),
+                scale: Vector3::new(0.5, 0.5, 0.5), // radius = scale.x
+            },
+        ),
+    );
+
+    app.spawn(
+        "Blue Sphere",
+        (
+            Sphere {
+                color: [0.3, 0.3, 0.8],
+                material_type: 0,
+            },
+            Transform {
+                position: Point3::new(-2.5, 0.5, -1.0),
+                rotation: UnitQuaternion::identity(),
+                scale: Vector3::new(0.5, 0.5, 0.5), // radius = scale.x
+            },
+        ),
+    );
+
+    // // Spawn lights for the raytracer
+    app.spawn(
+        "Main Light",
+        (
+            Light {
+                intensity: 1.0,
+                color: [1.0, 1.0, 1.0],
+            },
+            Transform {
+                position: Point3::new(5.0, 10.0, 5.0),
+                rotation: UnitQuaternion::identity(),
+                scale: Vector3::new(1.0, 1.0, 1.0),
+            },
+        ),
+    );
+
+    // app.spawn(
+    //     "Secondary Light",
+    //     (
+    //         Light {
+    //             intensity: 0.5,
+    //             color: [0.8, 0.9, 1.0],
+    //         },
+    //         Transform {
+    //             position: Point3::new(-5.0, 5.0, 5.0),
+    //             rotation: UnitQuaternion::identity(),
+    //             scale: Vector3::new(1.0, 1.0, 1.0),
+    //         },
+    //     ),
+    // );
 
     event_loop.run_app(&mut app)?;
 

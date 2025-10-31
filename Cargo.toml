@@ -23,4 +23,4 @@ pollster = "0.4.0"
 winit = "0.30.12"
 
 [build-dependencies]
-naga = { version = "27.0.1", features = ["wgsl-in", "validate"] }
+naga = { version = "27.0.1", features = ["wgsl-in"] }

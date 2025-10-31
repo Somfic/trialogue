@@ -49,7 +49,42 @@ pub fn draw_ui(
             } else {
                 ui.label("No entity selected");
             }
-        }); // Viewport
+        });
+
+    // Console panel at the bottom for shader errors
+    egui::TopBottomPanel::bottom("console")
+        .default_height(150.0)
+        .resizable(true)
+        .show(ctx, |ui| {
+            ui.heading("Console");
+            ui.separator();
+
+            // Check for shader errors
+            if let Some(shader_error_res) =
+                world.get_resource::<crate::layers::raytracer::ShaderError>()
+            {
+                if let Some(error) = &shader_error_res.0 {
+                    ui.colored_label(egui::Color32::RED, "❌ Shader Compilation Error:");
+                    ui.separator();
+
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::TextEdit::multiline(&mut error.as_str())
+                                    .code_editor()
+                                    .desired_width(f32::INFINITY),
+                            );
+                        });
+                } else {
+                    ui.colored_label(egui::Color32::GREEN, "✓ Shader compiled successfully");
+                }
+            } else {
+                ui.label("No shader status available");
+            }
+        });
+
+    // Viewport
     egui::CentralPanel::default()
         .frame(egui::Frame::NONE)
         .show(ctx, |ui| {
@@ -71,8 +106,12 @@ pub fn draw_ui(
 
             // Display the viewport texture if available
             if let Some(texture_id) = viewport_texture_id {
+                // Use the actual texture size for 1:1 pixel mapping
                 let size = [viewport_size.width as f32, viewport_size.height as f32];
-                ui.image(egui::load::SizedTexture::new(texture_id, size));
+                ui.add(
+                    egui::Image::new(egui::load::SizedTexture::new(texture_id, size))
+                        .fit_to_exact_size(egui::vec2(size[0], size[1])),
+                );
             } else {
                 // Paint a placeholder background for the viewport area
                 ui.painter()

@@ -2,6 +2,7 @@ mod camera;
 mod inspector;
 mod label;
 mod mesh;
+mod raytracer;
 mod resources;
 mod texture;
 mod transform;
@@ -10,6 +11,7 @@ use bevy_ecs::{component::Mutable, prelude::*};
 pub use camera::*;
 pub use label::*;
 pub use mesh::*;
+pub use raytracer::*;
 pub use resources::*;
 pub use texture::*;
 pub use transform::*;
@@ -21,6 +23,8 @@ pub fn create_component_inspector() -> ComponentInspector {
     // Register inspectable components
     inspector.register::<Transform>("Transform");
     inspector.register::<Camera>("Camera");
+    inspector.register::<Sphere>("Sphere");
+    inspector.register::<Light>("Light");
 
     inspector
 }

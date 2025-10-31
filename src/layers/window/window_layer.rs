@@ -29,12 +29,21 @@ impl WindowLayer {
         };
 
         let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
+
+        // Try to use Rgba8Unorm to match raytracer output, fallback to sRGB
+        let surface_format = if surface_caps
             .formats
-            .iter()
-            .find(|f| f.is_srgb())
-            .copied()
-            .unwrap_or(surface_caps.formats[0]);
+            .contains(&wgpu::TextureFormat::Rgba8Unorm)
+        {
+            wgpu::TextureFormat::Rgba8Unorm
+        } else {
+            surface_caps
+                .formats
+                .iter()
+                .find(|f| f.is_srgb())
+                .copied()
+                .unwrap_or(surface_caps.formats[0])
+        };
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
@@ -92,23 +101,65 @@ impl Layer for WindowLayer {
 
         // Get the window surface texture
         let surface_texture = self.surface.get_current_texture()?;
+        let surface_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-        // Copy the camera's render target to the surface
+        // Create an encoder
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Window Blit Encoder"),
             });
 
-        encoder.copy_texture_to_texture(
-            target.texture.as_image_copy(),
-            surface_texture.texture.as_image_copy(),
-            wgpu::Extent3d {
-                width: self.config.width.min(target.texture.width()),
-                height: self.config.height.min(target.texture.height()),
-                depth_or_array_layers: 1,
-            },
-        );
+        // Check if formats are compatible for direct copy
+        let source_format = target.texture.format();
+        let dest_format = self.config.format;
+
+        if source_format == dest_format {
+            // Direct copy if formats match
+            encoder.copy_texture_to_texture(
+                target.texture.as_image_copy(),
+                surface_texture.texture.as_image_copy(),
+                wgpu::Extent3d {
+                    width: self.config.width.min(target.texture.width()),
+                    height: self.config.height.min(target.texture.height()),
+                    depth_or_array_layers: 1,
+                },
+            );
+        } else {
+            // Use a render pass to convert formats (e.g., Rgba8Unorm -> Bgra8UnormSrgb)
+            // This will handle format conversion automatically through the GPU
+            let _target_view = target
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+
+            // Create a simple fullscreen blit using a render pass
+            // We need a simple shader for this - for now, just clear to a debug color
+            // In a production setup, you'd have a proper blit shader
+            let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Window Blit Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &surface_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+            drop(render_pass);
+
+            log::warn!(
+                "Format mismatch: source={:?}, dest={:?}. Need blit shader for proper conversion.",
+                source_format,
+                dest_format
+            );
+        }
 
         self.queue.submit(std::iter::once(encoder.finish()));
         surface_texture.present();
