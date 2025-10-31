@@ -93,20 +93,20 @@ fn main() -> Result<()> {
         ),
     );
 
-    app.spawn(
-        "Ground Plane",
-        (
-            Sphere {
-                color: [0.5, 0.5, 0.5],
-                material_type: 0, // Lambertian
-            },
-            Transform {
-                position: Point3::new(0.0, -1001.0, 0.0),
-                rotation: UnitQuaternion::identity(),
-                scale: Vector3::new(1000.0, 1000.0, 1000.0), // radius = scale.x
-            },
-        ),
-    );
+    // app.spawn(
+    //     "Ground Plane",
+    //     (
+    //         Sphere {
+    //             color: [0.5, 0.5, 0.5],
+    //             material_type: 0, // Lambertian
+    //         },
+    //         Transform {
+    //             position: Point3::new(0.0, -1001.0, 0.0),
+    //             rotation: UnitQuaternion::identity(),
+    //             scale: Vector3::new(1000.0, 1000.0, 1000.0), // radius = scale.x
+    //         },
+    //     ),
+    // );
 
     app.spawn(
         "Green Sphere",
