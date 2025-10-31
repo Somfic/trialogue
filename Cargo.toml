@@ -21,3 +21,6 @@ log = "0.4.28"
 nalgebra = { version = "0.34.1", features = ["bytemuck"] }
 pollster = "0.4.0"
 winit = "0.30.12"
+
+[build-dependencies]
+naga = { version = "27.0.1", features = ["wgsl-in", "validate"] }
