@@ -144,7 +144,20 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>) -> vec3<f32> {
 
             color *= sphere.color;
 
-            let bounce_direction = normalize(normal + random_unit_vector(&seed));
+            // Choose bounce direction based on material type
+            var bounce_direction: vec3<f32>;
+            if sphere.material_type == 0u {
+                // Lambertian (diffuse)
+                bounce_direction = normalize(normal + random_unit_vector(&seed));
+            } else if sphere.material_type == 1u {
+                // Metal (reflective)
+                bounce_direction = reflect(ray.direction, normal);
+            } else {
+                // Default to diffuse
+                bounce_direction = normalize(normal + random_unit_vector(&seed));
+            }
+
+
             ray = Ray(hit_point + normal * 0.001, bounce_direction);
         }
 
