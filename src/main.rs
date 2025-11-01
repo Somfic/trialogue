@@ -39,7 +39,8 @@ fn main() -> Result<()> {
 
     let mut app = ApplicationBuilder::new()
         .add_layer(|context| Box::new(layers::DeviceLayer::new(context)))
-        .add_layer(|context| Box::new(layers::RaytracerLayer::new(context)))
+        // .add_layer(|context| Box::new(layers::RaytracerLayer::new(context)))
+        .add_layer(|context| Box::new(layers::RenderLayer::new(context)))
         // .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
         // Swap between WindowLayer and EditorLayer:
         // .add_layer(|context| Box::new(layers::WindowLayer::new(context)))

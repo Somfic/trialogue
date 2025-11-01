@@ -52,7 +52,8 @@ impl RaytracerLayer {
         };
 
         // Load shader
-        let shader = device.create_shader_module(wgpu::include_wgsl!("../../shaders/shader.wgsl"));
+        let shader =
+            device.create_shader_module(wgpu::include_wgsl!("../../shaders/raytracer.wgsl"));
 
         // Create bind group layout for compute shader
         let compute_bind_group_layout =
@@ -313,7 +314,7 @@ impl RaytracerLayer {
             reload_environment_map,
         ));
 
-        let shader_path = std::path::PathBuf::from("src/shaders/shader.wgsl");
+        let shader_path = std::path::PathBuf::from("src/shaders/raytracer.wgsl");
         let last_shader_modified = std::fs::metadata(&shader_path)
             .ok()
             .and_then(|m| m.modified().ok());
