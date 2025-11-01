@@ -17,6 +17,15 @@ var environment_sampler: sampler;
 @group(0) @binding(6)
 var<uniform> frame_count: u32;
 
+@group(0) @binding(7)
+var accumulation_texture: texture_2d<f32>;
+
+@group(0) @binding(8)
+var accumulation_sampler: sampler;
+
+@group(0) @binding(9)
+var accumulation_output: texture_storage_2d<rgba32float, write>;
+
 fn pcg_hash(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
     var word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -105,55 +114,48 @@ struct Camera {
     fov: f32,
     aspect_ratio: f32,
     aperture: f32,
-    focus_distance: f32
+    focus_distance: f32,
+    // Precomputed camera basis vectors
+    u: vec3<f32>,
+    v: vec3<f32>,
+    w: vec3<f32>,
+    lower_left_corner: vec3<f32>,
+    horizontal: vec3<f32>,
+    vertical: vec3<f32>,
 }
 
 fn hit_sphere(sphere: Sphere, ray: Ray) -> f32 {
     let oc = ray.origin - sphere.center;
-    let a = dot(ray.direction, ray.direction); // note: do we need this if our ray direction is always normalized?
-    let b = 2.0 * dot(oc, ray.direction);
-    let c = dot(oc, oc) - (sphere.radius * sphere.radius);
+    let half_b = dot(oc, ray.direction);
+    
+    // Early exit: if ray is pointing away from sphere center, can't hit
+    if half_b > 0.0 {
+        return 0.0;
+    }
+    
+    let c = dot(oc, oc) - sphere.radius * sphere.radius;
+    let discriminant = fma(half_b, half_b, -c); // half_b² - c using fused multiply-add
 
-    // discriminant = b² - 4ac
-    let discriminant = (b * b) - 4.0 * a * c;
-
-    // this ray doesn't hit, return early
+    // No intersection if discriminant is negative
     if discriminant < 0.0 {
         return 0.0;
     }
 
-    let distance = (-b - sqrt(discriminant)) / (2.0 * a);
-
-    // this sphere is behind us, return early
-    if distance < 0.0 {
-        return 0.0;
-    }
-
-    return distance;
+    // Calculate nearest hit point (we know it's positive since half_b <= 0)
+    return -half_b - sqrt(discriminant);
 }
 
 fn build_ray(u: f32, v: f32, seed: ptr<function, u32>) -> Ray {
-    let w = normalize(camera.position - camera.look_at);
-    let u_vec = normalize(cross(camera.up, w));
-    let v_vec = cross(w, u_vec);
-
-    let theta = camera.fov * 3.14159265359 / 180.0;
-    let half_height = tan(theta / 2.0);
-    let half_width = camera.aspect_ratio * half_height;
-
-    let lower_left_corner = camera.position - half_width * u_vec - half_height * v_vec - w;
-    let horizontal = 2.0 * half_width * u_vec;
-    let vertical = 2.0 * half_height * v_vec;
-
+    // Use precomputed camera basis vectors
     // depth of field
     if camera.aperture > 0.0 {
-        let focus_point = lower_left_corner + u * horizontal + v * vertical;
+        let focus_point = camera.lower_left_corner + u * camera.horizontal + v * camera.vertical;
         let ray_direction = normalize(focus_point - camera.position);
         let point_on_focus_plane = camera.position + ray_direction * camera.focus_distance;
 
         // Randomize ray origin within aperture disk
         let random_offset = random_in_unit_disk(seed);
-        let offset = u_vec * random_offset.x * camera.aperture + v_vec * random_offset.y * camera.aperture;
+        let offset = camera.u * random_offset.x * camera.aperture + camera.v * random_offset.y * camera.aperture;
         let ray_origin = camera.position + offset;
 
         // Ray direction from randomized origin to point on focus plane
@@ -161,7 +163,7 @@ fn build_ray(u: f32, v: f32, seed: ptr<function, u32>) -> Ray {
 
         return Ray(ray_origin, direction);
     } else {
-        let direction = normalize(lower_left_corner + u * horizontal + v * vertical - camera.position);
+        let direction = normalize(camera.lower_left_corner + u * camera.horizontal + v * camera.vertical - camera.position);
         return Ray(camera.position, direction);
     }
 }
@@ -187,9 +189,8 @@ fn get_environment_color(direction: vec3<f32>) -> vec3<f32> {
 
 // get the color for a specific pixel
 fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) -> vec3<f32> {
-    let aspect_ratio = f32(size.x) / f32(size.y);
-    let bounces = 8;
-    let samples = 2400;
+    let bounces = 3;
+    let samples = 1; // Reduced from 16 - we'll use temporal accumulation instead
 
     var accumulated_color = vec3(0.0, 0.0, 0.0);
 
@@ -200,6 +201,12 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) 
         var color = vec3(1.0, 1.0, 1.0);
 
         for (var bounce = 0; bounce < bounces; bounce++) {
+            // Early ray termination: if contribution is negligible, stop bouncing
+            let brightness = color.x + color.y + color.z;
+            if brightness < 0.001 {
+                break;
+            }
+
             var closest_distance = -1.0;
             var hit_sphere_index = -1;
 
@@ -210,6 +217,17 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) 
                     hit_sphere_index = i32(i);
                 }
             }
+
+            // fog
+            let scatter_distance = -log(1.0 - random_float(seed)) / 0.1; // fog density = 0.1
+            if closest_distance < 0.0 || scatter_distance < closest_distance {
+                // Ray hits fog before any object
+                let fog_point = ray.origin + scatter_distance * ray.direction;
+                let fog_color = vec3<f32>(0.7, 0.8, 1.0); // light blue fog
+                color *= fog_color;
+                break;
+            }
+
             // if nothing was hit, return sky color
             if closest_distance < 0.0 {
                 color *= get_environment_color(ray.direction);
@@ -249,10 +267,7 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) 
         accumulated_color += color;
     }
 
-    let linear_color = accumulated_color / f32(samples);
-    let gamma_corrected_color = pow(linear_color, vec3(1.0 / 2.2));
-
-    return gamma_corrected_color;
+    return accumulated_color / f32(samples);
 }
 
 // raytracer entry point
@@ -269,9 +284,32 @@ fn raytracer(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // Vary seed each frame for temporal noise variation
     var seed = u32(pixel.x) + u32(pixel.y) * size.x + frame_count * 719393u;
 
-    let color = get_pixel_color(size, pixel, &seed);
+    // Get new sample
+    let new_sample = get_pixel_color(size, pixel, &seed);
+    
+    // Temporal accumulation with ping-pong buffers
+    var accumulated: vec3<f32>;
+    
+    if (frame_count == 0u) {
+        // First frame: just use the new sample
+        accumulated = new_sample;
+    } else {
+        // Read from previous frame accumulation
+        let previous_color = textureLoad(accumulation_texture, pixel, 0).rgb;
+        
+        // Blend factor - higher frame count = more weight to history
+        // frame_count starts at 1 for second frame, so we get proper averaging
+        let blend_factor = min(f32(frame_count) / (f32(frame_count) + 1.0), 0.98);
+        accumulated = mix(new_sample, previous_color, blend_factor);
+    }
+    
+    // Write accumulated linear color to ping-pong buffer
+    textureStore(accumulation_output, pixel, vec4<f32>(accumulated, 1.0));
+    
+    // Apply gamma correction for display output
+    let gamma_corrected = pow(accumulated, vec3(1.0 / 2.2));
 
-    textureStore(output_texture, pixel, vec4<f32>(color, 1.0));
+    textureStore(output_texture, pixel, vec4<f32>(gamma_corrected, 1.0));
 }
 
 // basic vertex and fragment shaders to display the raytraced texture

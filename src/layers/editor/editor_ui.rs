@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use super::editor_state::EditorState;
 
 pub fn draw_ui(
+    context: &LayerContext,
     ctx: &egui::Context,
     world: &Arc<Mutex<World>>,
     viewport_texture_id: Option<egui::TextureId>,
@@ -117,5 +118,16 @@ pub fn draw_ui(
                 ui.painter()
                     .rect_filled(viewport_rect, 0.0, egui::Color32::from_rgb(0, 0, 0));
             }
+        });
+
+    // floating panel for stats
+    egui::Window::new("Stats")
+        .default_pos(egui::pos2(20.0, 20.0))
+        .resizable(true)
+        .show(ctx, |ui| {
+            ui.label("Rendering Stats:");
+            ui.separator();
+            let dt = context.delta_time.as_millis();
+            ui.label(format!("Frame Time: {} ms", dt));
         });
 }

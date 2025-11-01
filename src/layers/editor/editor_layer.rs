@@ -125,7 +125,7 @@ impl Layer for EditorLayer {
         let world = context.world.clone();
 
         let egui_output = self.egui_ctx.run(raw_input, |ctx| {
-            editor_ui::draw_ui(ctx, &world, viewport_texture_id, &mut self.editor_state);
+            editor_ui::draw_ui(context, ctx, &world, viewport_texture_id, &mut self.editor_state);
         });
 
         // Handle egui output

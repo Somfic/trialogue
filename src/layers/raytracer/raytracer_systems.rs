@@ -168,19 +168,19 @@ pub fn update_raytracer_camera(
         if let Some((camera, transform)) = camera_query.iter().find(|(cam, _)| cam.is_main) {
             let aspect_ratio = window_size.width as f32 / window_size.height as f32;
 
-            let camera_data = RaytracerCamera {
-                position: Vector3::new(
+            let camera_data = RaytracerCamera::new(
+                Vector3::new(
                     transform.position.x,
                     transform.position.y,
                     transform.position.z,
                 ),
-                look_at: Vector3::new(camera.target.x, camera.target.y, camera.target.z),
-                up: Vector3::new(0.0, 1.0, 0.0),
-                fov: camera.fovy.to_degrees(),
+                Vector3::new(camera.target.x, camera.target.y, camera.target.z),
+                Vector3::new(0.0, 1.0, 0.0),
+                camera.fovy.to_degrees(),
                 aspect_ratio,
-                aperture: camera.aperture,
-                focus_distance: camera.focus_distance,
-            };
+                camera.aperture,
+                camera.focus_distance,
+            );
 
             let mut buffer_data = UniformBuffer::new(Vec::new());
             buffer_data.write(&camera_data).unwrap();
