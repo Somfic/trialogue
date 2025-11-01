@@ -1,4 +1,6 @@
-use crate::layers::raytracer::{update_raytracer_camera, update_raytracer_scene};
+use crate::layers::raytracer::{
+    load_environment_map, reload_environment_map, update_raytracer_camera, update_raytracer_scene,
+};
 use crate::prelude::*;
 use bevy_ecs::schedule::Schedule;
 use encase::UniformBuffer;
@@ -22,6 +24,9 @@ pub struct RaytracerLayer {
     compute_bind_group_layout: wgpu::BindGroupLayout,
     display_bind_group_layout: wgpu::BindGroupLayout,
     shader_error: Option<String>,
+    default_env_map: Option<(wgpu::TextureView, wgpu::Sampler)>,
+    frame_count_buffer: wgpu::Buffer,
+    frame_count: u32,
 }
 
 #[derive(Resource, Clone)]
@@ -86,6 +91,35 @@ impl RaytracerLayer {
                             access: wgpu::StorageTextureAccess::WriteOnly,
                             format: wgpu::TextureFormat::Rgba8Unorm,
                             view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    // Environment map texture (binding 4)
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        },
+                        count: None,
+                    },
+                    // Environment map sampler (binding 5)
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 5,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    // Frame count uniform (binding 6)
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 6,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
                         count: None,
                     },
@@ -212,6 +246,12 @@ impl RaytracerLayer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let frame_count_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Frame Count Buffer"),
+            contents: &0u32.to_ne_bytes(),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
         // Clone layouts before storing them in the world
         let compute_bind_group_layout_clone = compute_bind_group_layout.clone();
         let display_bind_group_layout_clone = display_bind_group_layout.clone();
@@ -228,7 +268,12 @@ impl RaytracerLayer {
 
         // Setup systems
         let mut schedule = Schedule::default();
-        schedule.add_systems((update_raytracer_scene, update_raytracer_camera));
+        schedule.add_systems((
+            update_raytracer_scene,
+            update_raytracer_camera,
+            load_environment_map,
+            reload_environment_map,
+        ));
 
         let shader_path = std::path::PathBuf::from("src/shaders/shader.wgsl");
         let last_shader_modified = std::fs::metadata(&shader_path)
@@ -258,6 +303,9 @@ impl RaytracerLayer {
             compute_bind_group_layout: compute_bind_group_layout_clone,
             display_bind_group_layout: display_bind_group_layout_clone,
             shader_error: None,
+            default_env_map: None,
+            frame_count_buffer,
+            frame_count: 0,
         }
     }
 
@@ -419,6 +467,73 @@ impl Layer for RaytracerLayer {
             return Ok(());
         };
 
+        // Query for environment map, or use cached default
+        let (env_view, env_sampler) = {
+            let mut env_query = world.query::<&GpuEnvironmentMap>();
+            if let Some(env) = env_query.iter(&world).next() {
+                log::trace!("Using loaded environment map");
+                (env.view.clone(), env.sampler.clone())
+            } else {
+                // Create default if not cached
+                if self.default_env_map.is_none() {
+                    let default_texture = self.device.create_texture(&wgpu::TextureDescriptor {
+                        label: Some("Default Environment Map"),
+                        size: wgpu::Extent3d {
+                            width: 1,
+                            height: 1,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: wgpu::TextureFormat::Rgba32Float,
+                        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                        view_formats: &[],
+                    });
+
+                    self.queue.write_texture(
+                        wgpu::TexelCopyTextureInfo {
+                            texture: &default_texture,
+                            mip_level: 0,
+                            origin: wgpu::Origin3d::ZERO,
+                            aspect: wgpu::TextureAspect::All,
+                        },
+                        &[0.001f32, 0.001, 0.001, 1.0]
+                            .iter()
+                            .flat_map(|f| f.to_ne_bytes())
+                            .collect::<Vec<u8>>(),
+                        wgpu::TexelCopyBufferLayout {
+                            offset: 0,
+                            bytes_per_row: Some(16),
+                            rows_per_image: Some(1),
+                        },
+                        wgpu::Extent3d {
+                            width: 1,
+                            height: 1,
+                            depth_or_array_layers: 1,
+                        },
+                    );
+
+                    let default_view =
+                        default_texture.create_view(&wgpu::TextureViewDescriptor::default());
+                    let default_sampler = self.device.create_sampler(&wgpu::SamplerDescriptor {
+                        address_mode_u: wgpu::AddressMode::Repeat,
+                        address_mode_v: wgpu::AddressMode::ClampToEdge,
+                        address_mode_w: wgpu::AddressMode::ClampToEdge,
+                        mag_filter: wgpu::FilterMode::Linear,
+                        min_filter: wgpu::FilterMode::Linear,
+                        mipmap_filter: wgpu::FilterMode::Nearest,
+                        ..Default::default()
+                    });
+
+                    self.default_env_map = Some((default_view, default_sampler));
+                }
+
+                let (view, sampler) = self.default_env_map.as_ref().unwrap();
+                (view.clone(), sampler.clone())
+            }
+        };
+
         // Check if we need to recreate texture/bind groups
         let needs_recreation = if let Some(texture) = &self.output_texture {
             let size = texture.size();
@@ -497,6 +612,18 @@ impl Layer for RaytracerLayer {
                         binding: 3,
                         resource: wgpu::BindingResource::TextureView(&view),
                     },
+                    wgpu::BindGroupEntry {
+                        binding: 4,
+                        resource: wgpu::BindingResource::TextureView(&env_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 5,
+                        resource: wgpu::BindingResource::Sampler(&env_sampler),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 6,
+                        resource: self.frame_count_buffer.as_entire_binding(),
+                    },
                 ],
             });
 
@@ -532,6 +659,14 @@ impl Layer for RaytracerLayer {
 
             // If there's a shader error, clear to black instead of running compute shader
             if self.shader_error.is_none() {
+                // Update frame count
+                self.frame_count = self.frame_count.wrapping_add(1);
+                self.queue.write_buffer(
+                    &self.frame_count_buffer,
+                    0,
+                    &self.frame_count.to_ne_bytes(),
+                );
+
                 // Run compute shader to raytrace the scene
                 let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                     label: Some("Raytracer Compute Pass"),

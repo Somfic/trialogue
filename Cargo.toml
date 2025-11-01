@@ -15,12 +15,15 @@ egui-winit = "0.33"
 image = { version = "0.25.8", default-features = false, features = [
     "png",
     "jpeg",
+    "hdr",
 ] }
 log = "0.4.28"
 nalgebra = { version = "0.34.1", features = ["bytemuck", "encase"] }
 pollster = "0.4.0"
 winit = "0.30.12"
 encase = "0.12.0"
+rfd = "0.15"
+rand = "0.8"
 
 [build-dependencies]
 naga = { version = "27.0.1", features = ["wgsl-in"] }

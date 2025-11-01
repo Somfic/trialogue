@@ -91,3 +91,10 @@ pub struct RaytracerSpheresBuffer(pub wgpu::Buffer);
 
 #[derive(Resource)]
 pub struct RaytracerLightsBuffer(pub wgpu::Buffer);
+
+#[derive(Resource)]
+pub struct RaytracerEnvironmentMap {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
+}

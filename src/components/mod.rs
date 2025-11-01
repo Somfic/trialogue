@@ -25,6 +25,7 @@ pub fn create_component_inspector() -> ComponentInspector {
     inspector.register::<Camera>("Camera");
     inspector.register::<Sphere>("Sphere");
     inspector.register::<Light>("Light");
+    inspector.register::<EnvironmentMap>("Environment Map");
 
     inspector
 }

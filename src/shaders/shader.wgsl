@@ -8,6 +8,15 @@ var<storage, read> spheres: array<Sphere>;
 @group(0) @binding(0)
 var<uniform> camera: Camera;
 
+@group(0) @binding(4)
+var environment_map: texture_2d<f32>;
+
+@group(0) @binding(5)
+var environment_sampler: sampler;
+
+@group(0) @binding(6)
+var<uniform> frame_count: u32;
+
 fn pcg_hash(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
     var word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -157,11 +166,30 @@ fn build_ray(u: f32, v: f32, seed: ptr<function, u32>) -> Ray {
     }
 }
 
+fn get_environment_color(direction: vec3<f32>) -> vec3<f32> {
+    // Convert direction to latitude-longitude UV coordinates
+    // u = atan2(z, x) / (2π) + 0.5
+    // v = asin(y) / π + 0.5
+    let u = atan2(direction.z, direction.x) / (2.0 * 3.14159265359) + 0.5;
+    let v = 1.0 - (asin(clamp(direction.y, -1.0, 1.0)) / 3.14159265359 + 0.5); // Flip V
+
+    // Get texture dimensions and convert UV to pixel coordinates
+    let dims = textureDimensions(environment_map);
+    let pixel = vec2<i32>(
+        i32(u * f32(dims.x)),
+        i32(v * f32(dims.y))
+    );
+
+    let color = textureLoad(environment_map, pixel, 0);
+
+    return color.rgb;
+}
+
 // get the color for a specific pixel
 fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) -> vec3<f32> {
     let aspect_ratio = f32(size.x) / f32(size.y);
-    let bounces = 3;
-    let samples = 256;
+    let bounces = 4;
+    let samples = 4;
 
     var accumulated_color = vec3(0.0, 0.0, 0.0);
 
@@ -184,7 +212,7 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) 
             }
             // if nothing was hit, return sky color
             if closest_distance < 0.0 {
-                color *= vec3<f32>(0.1, 0.1, 0.1);
+                color *= get_environment_color(ray.direction);
                 break;
             }
 
@@ -238,7 +266,8 @@ fn raytracer(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     let pixel = vec2<i32>(global_id.xy);
-    var seed = u32(pixel.x) + u32(pixel.y) * size.x;
+    // Vary seed each frame for temporal noise variation
+    var seed = u32(pixel.x) + u32(pixel.y) * size.x + frame_count * 719393u;
 
     let color = get_pixel_color(size, pixel, &seed);
 

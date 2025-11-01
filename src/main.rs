@@ -30,17 +30,20 @@ const VERTICES: &[Vertex] = &[
 const INDICES: &[Index] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
 fn main() -> Result<()> {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+        .filter_module("trialogue", log::LevelFilter::Debug)
+        .filter_module("bevy_ecs", log::LevelFilter::Debug)
+        .init();
 
     let event_loop = EventLoop::with_user_event().build()?;
 
     let mut app = ApplicationBuilder::new()
         .add_layer(|context| Box::new(layers::DeviceLayer::new(context)))
         .add_layer(|context| Box::new(layers::RaytracerLayer::new(context)))
-        // .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
+        .add_layer(|context| Box::new(sandbox_layer::SandboxLayer::new(context)))
         // Swap between WindowLayer and EditorLayer:
-        // .add_layer(|context| Box::new(layers::WindowLayer::new(context)))
-        .add_layer(|context| Box::new(layers::EditorLayer::new(context)))
+        .add_layer(|context| Box::new(layers::WindowLayer::new(context)))
+        // .add_layer(|context| Box::new(layers::EditorLayer::new(context)))
         .build();
 
     // app.spawn(
@@ -79,66 +82,40 @@ fn main() -> Result<()> {
         ),
     );
 
-    // Spawn spheres for the raytracer
-    app.spawn(
-        "Red Sphere",
-        (
-            Sphere {
-                color: [0.8, 0.3, 0.3],
-                material_type: 0, // Lambertian
-            },
-            Transform {
-                position: Point3::new(0.0, 0.0, 0.0),
-                rotation: UnitQuaternion::identity(),
-                scale: Vector3::new(1.0, 1.0, 1.0), // radius = scale.x
-            },
-        ),
-    );
+    // Generate random spheres
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let num_spheres = 20;
 
-    // app.spawn(
-    //     "Ground Plane",
-    //     (
-    //         Sphere {
-    //             color: [0.5, 0.5, 0.5],
-    //             material_type: 0, // Lambertian
-    //         },
-    //         Transform {
-    //             position: Point3::new(0.0, -1001.0, 0.0),
-    //             rotation: UnitQuaternion::identity(),
-    //             scale: Vector3::new(1000.0, 1000.0, 1000.0), // radius = scale.x
-    //         },
-    //     ),
-    // );
+    for i in 0..num_spheres {
+        let x = rng.gen_range(-10.0..10.0);
+        let y = rng.gen_range(0.5..3.0);
+        let z = rng.gen_range(-10.0..10.0);
+        let radius = rng.gen_range(0.3..1.5);
 
-    app.spawn(
-        "Green Sphere",
-        (
-            Sphere {
-                color: [0.3, 0.8, 0.3],
-                material_type: 0,
-            },
-            Transform {
-                position: Point3::new(2.5, 0.5, -1.0),
-                rotation: UnitQuaternion::identity(),
-                scale: Vector3::new(0.5, 0.5, 0.5), // radius = scale.x
-            },
-        ),
-    );
+        let color = [
+            rng.gen_range(0.1..1.0),
+            rng.gen_range(0.1..1.0),
+            rng.gen_range(0.1..1.0),
+        ];
 
-    app.spawn(
-        "Blue Sphere",
-        (
-            Sphere {
-                color: [0.3, 0.3, 0.8],
-                material_type: 0,
-            },
-            Transform {
-                position: Point3::new(-2.5, 0.5, -1.0),
-                rotation: UnitQuaternion::identity(),
-                scale: Vector3::new(0.5, 0.5, 0.5), // radius = scale.x
-            },
-        ),
-    );
+        let material_type = if rng.gen_bool(0.3) { 1 } else { 0 }; // 30% metal, 70% diffuse
+
+        app.spawn(
+            format!("Sphere {}", i),
+            (
+                Sphere {
+                    color,
+                    material_type,
+                },
+                Transform {
+                    position: Point3::new(x, y, z),
+                    rotation: UnitQuaternion::identity(),
+                    scale: Vector3::new(radius, radius, radius),
+                },
+            ),
+        );
+    }
 
     // // Spawn lights for the raytracer
     app.spawn(
@@ -154,6 +131,14 @@ fn main() -> Result<()> {
                 scale: Vector3::new(1.0, 1.0, 1.0),
             },
         ),
+    );
+
+    // Spawn environment map
+    app.spawn(
+        "Environment Map",
+        (EnvironmentMap {
+            bytes: Vec::new(), // Empty for now - use the inspector to load an HDR file
+        },),
     );
 
     // app.spawn(
