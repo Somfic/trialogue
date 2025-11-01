@@ -46,7 +46,14 @@ impl Inspectable for Sphere {
         }
 
         // Button to toggle between regular and emissive
-        if ui.button(if is_emissive { "Make Non-Emissive" } else { "Make Emissive" }).clicked() {
+        if ui
+            .button(if is_emissive {
+                "Make Non-Emissive"
+            } else {
+                "Make Emissive"
+            })
+            .clicked()
+        {
             if is_emissive {
                 // Clamp to [0, 1] range
                 self.color[0] = self.color[0].min(1.0);

@@ -1,9 +1,9 @@
 use crate::prelude::*;
 use encase::{StorageBuffer, UniformBuffer};
-use wgpu::util::DeviceExt;
 use image::ImageDecoder;
-use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use wgpu::util::DeviceExt;
 
 /// System to collect all spheres and lights and create/update the GPU scene buffer
 pub fn update_raytracer_scene(
@@ -210,7 +210,9 @@ pub fn load_environment_map(
         }
 
         // Try to load as HDR first, fall back to regular image
-        let (width, height, data) = if let Ok(decoder) = image::codecs::hdr::HdrDecoder::new(std::io::Cursor::new(&env_map.bytes)) {
+        let (width, height, data) = if let Ok(decoder) =
+            image::codecs::hdr::HdrDecoder::new(std::io::Cursor::new(&env_map.bytes))
+        {
             let metadata = decoder.metadata();
             let width = metadata.width;
             let height = metadata.height;
@@ -338,7 +340,9 @@ pub fn reload_environment_map(
         }
 
         // Try to load as HDR first, fall back to regular image
-        let (width, height, data) = if let Ok(decoder) = image::codecs::hdr::HdrDecoder::new(std::io::Cursor::new(&env_map.bytes)) {
+        let (width, height, data) = if let Ok(decoder) =
+            image::codecs::hdr::HdrDecoder::new(std::io::Cursor::new(&env_map.bytes))
+        {
             let metadata = decoder.metadata();
             let width = metadata.width;
             let height = metadata.height;

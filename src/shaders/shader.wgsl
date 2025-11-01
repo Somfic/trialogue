@@ -188,8 +188,8 @@ fn get_environment_color(direction: vec3<f32>) -> vec3<f32> {
 // get the color for a specific pixel
 fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) -> vec3<f32> {
     let aspect_ratio = f32(size.x) / f32(size.y);
-    let bounces = 4;
-    let samples = 4;
+    let bounces = 8;
+    let samples = 2400;
 
     var accumulated_color = vec3(0.0, 0.0, 0.0);
 
