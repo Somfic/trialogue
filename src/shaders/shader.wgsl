@@ -50,6 +50,33 @@ fn random_in_unit_disk(seed: ptr<function, u32>) -> vec2<f32> {
     return vec2<f32>(cos(angle), sin(angle)) * radius;
 }
 
+// Build an orthonormal basis from a normal vector
+fn build_orthonormal_basis(normal: vec3<f32>) -> mat3x3<f32> {
+    // Choose a vector not parallel to normal
+    let helper = select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), abs(normal.x) > 0.9);
+
+    let tangent = normalize(cross(normal, helper));
+    let bitangent = cross(normal, tangent);
+
+    // Return matrix where columns are tangent, bitangent, normal
+    return mat3x3<f32>(tangent, bitangent, normal);
+}
+
+// Cosine-weighted hemisphere sampling
+fn cosine_weighted_hemisphere(normal: vec3<f32>, seed: ptr<function, u32>) -> vec3<f32> {
+    let disk_sample = random_in_unit_disk(seed);
+    let x = disk_sample.x;
+    let y = disk_sample.y;
+    let z = sqrt(max(0.0, 1.0 - x * x - y * y));
+
+    // Local direction (z points along normal)
+    let local_dir = vec3<f32>(x, y, z);
+
+    // Transform to world space
+    let basis = build_orthonormal_basis(normal);
+    return basis * local_dir;
+}
+
 struct Ray {
     origin: vec3<f32>,
     direction: vec3<f32>,
@@ -133,7 +160,7 @@ fn build_ray(u: f32, v: f32, seed: ptr<function, u32>) -> Ray {
 // get the color for a specific pixel
 fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) -> vec3<f32> {
     let aspect_ratio = f32(size.x) / f32(size.y);
-    let bounces = 4;
+    let bounces = 3;
     let samples = 256;
 
     var accumulated_color = vec3(0.0, 0.0, 0.0);
@@ -178,14 +205,14 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) 
             // Choose bounce direction based on material type
             var bounce_direction: vec3<f32>;
             if sphere.material_type == 0u {
-                // Lambertian (diffuse)
-                bounce_direction = normalize(normal + random_unit_vector(seed));
+                // Lambertian (diffuse) - use cosine-weighted sampling
+                bounce_direction = cosine_weighted_hemisphere(normal, seed);
             } else if sphere.material_type == 1u {
                 // Metal (reflective)
                 bounce_direction = reflect(ray.direction, normal);
             } else {
                 // Default to diffuse
-                bounce_direction = normalize(normal + random_unit_vector(seed));
+                bounce_direction = cosine_weighted_hemisphere(normal, seed);
             }
 
             ray = Ray(hit_point + normal * 0.001, bounce_direction);
