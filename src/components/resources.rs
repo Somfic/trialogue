@@ -1,6 +1,5 @@
+use crate::prelude::*;
 use std::time::Duration;
-
-use bevy_ecs::prelude::*;
 
 #[derive(Resource)]
 pub struct GpuDevice(pub wgpu::Device);
@@ -58,35 +57,30 @@ pub struct RaytracerBindGroup(pub wgpu::BindGroup);
 pub struct RaytracerDisplayBindGroup(pub wgpu::BindGroup);
 
 // Raytracer scene data
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(ShaderType)]
 pub struct RaytracerCamera {
-    pub position: [f32; 3],
-    pub _padding1: f32,
-    pub look_at: [f32; 3],
-    pub _padding2: f32,
-    pub up: [f32; 3],
+    pub position: Vector3<f32>,
+    pub look_at: Vector3<f32>,
+    pub up: Vector3<f32>,
     pub fov: f32,
     pub aspect_ratio: f32,
-    pub _padding3: [f32; 3],
+    pub aperture: f32,
+    pub focus_distance: f32,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(ShaderType)]
 pub struct RaytracerSphere {
-    pub center: [f32; 3],
+    pub center: Vector3<f32>,
     pub radius: f32,
-    pub color: [f32; 3],
+    pub color: Vector3<f32>,
     pub material_type: u32,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(ShaderType)]
 pub struct RaytracerLight {
-    pub position: [f32; 3],
+    pub position: Vector3<f32>,
     pub intensity: f32,
-    pub color: [f32; 3],
-    pub _padding: f32,
+    pub color: Vector3<f32>,
 }
 
 #[derive(Resource)]

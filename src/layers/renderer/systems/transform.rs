@@ -48,10 +48,6 @@ pub fn update_transform_buffers(
 
     for (transform, gpu_transform) in query.iter() {
         let model_matrix = compute_model_matrix(transform);
-        queue.write_buffer(
-            &gpu_transform.buffer,
-            0,
-            bytemuck::cast_slice(&[model_matrix]),
-        );
+        queue.write_buffer(&gpu_transform.buffer, 0, bytemuck::cast_slice(&[model_matrix]));
     }
 }

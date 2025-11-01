@@ -44,6 +44,12 @@ fn random_in_hemisphere(normal: vec3<f32>, seed: ptr<function, u32>) -> vec3<f32
     }
 }
 
+fn random_in_unit_disk(seed: ptr<function, u32>) -> vec2<f32> {
+    let angle = random_float(seed) * 6.28318530718;
+    let radius = sqrt(random_float(seed));
+    return vec2<f32>(cos(angle), sin(angle)) * radius;
+}
+
 struct Ray {
     origin: vec3<f32>,
     direction: vec3<f32>,
@@ -62,6 +68,8 @@ struct Camera {
     up: vec3<f32>,
     fov: f32,
     aspect_ratio: f32,
+    aperture: f32,
+    focus_distance: f32
 }
 
 fn hit_sphere(sphere: Sphere, ray: Ray) -> f32 {
@@ -88,7 +96,7 @@ fn hit_sphere(sphere: Sphere, ray: Ray) -> f32 {
     return distance;
 }
 
-fn build_ray(u: f32, v: f32) -> Ray {
+fn build_ray(u: f32, v: f32, seed: ptr<function, u32>) -> Ray {
     let w = normalize(camera.position - camera.look_at);
     let u_vec = normalize(cross(camera.up, w));
     let v_vec = cross(w, u_vec);
@@ -101,24 +109,39 @@ fn build_ray(u: f32, v: f32) -> Ray {
     let horizontal = 2.0 * half_width * u_vec;
     let vertical = 2.0 * half_height * v_vec;
 
-    let direction = normalize(lower_left_corner + u * horizontal + v * vertical - camera.position);
+    // depth of field
+    if camera.aperture > 0.0 {
+        let focus_point = lower_left_corner + u * horizontal + v * vertical;
+        let ray_direction = normalize(focus_point - camera.position);
+        let point_on_focus_plane = camera.position + ray_direction * camera.focus_distance;
 
-    return Ray(camera.position, direction);
+        // Randomize ray origin within aperture disk
+        let random_offset = random_in_unit_disk(seed);
+        let offset = u_vec * random_offset.x * camera.aperture + v_vec * random_offset.y * camera.aperture;
+        let ray_origin = camera.position + offset;
+
+        // Ray direction from randomized origin to point on focus plane
+        let direction = normalize(point_on_focus_plane - ray_origin);
+
+        return Ray(ray_origin, direction);
+    } else {
+        let direction = normalize(lower_left_corner + u * horizontal + v * vertical - camera.position);
+        return Ray(camera.position, direction);
+    }
 }
 
 // get the color for a specific pixel
-fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>) -> vec3<f32> {
+fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) -> vec3<f32> {
     let aspect_ratio = f32(size.x) / f32(size.y);
-    let bounces = 5;
-    let samples = 4;
+    let bounces = 4;
+    let samples = 256;
 
-    var seed = u32(pixel.x) + u32(pixel.y) * size.x;
     var accumulated_color = vec3(0.0, 0.0, 0.0);
 
     for (var sample = 0; sample < samples; sample++) {
-        let u = (f32(pixel.x) + random_float(&seed)) / f32(size.x);
-        let v = (f32(i32(size.y) - pixel.y) + random_float(&seed)) / f32(size.y);
-        var ray = build_ray(u, v);
+        let u = (f32(pixel.x) + random_float(seed)) / f32(size.x);
+        let v = (f32(i32(size.y) - pixel.y) + random_float(seed)) / f32(size.y);
+        var ray = build_ray(u, v, seed);
         var color = vec3(1.0, 1.0, 1.0);
 
         for (var bounce = 0; bounce < bounces; bounce++) {
@@ -134,7 +157,7 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>) -> vec3<f32> {
             }
             // if nothing was hit, return sky color
             if closest_distance < 0.0 {
-                color *= vec3<f32>(0.5, 0.7, 1.0);
+                color *= vec3<f32>(0.1, 0.1, 0.1);
                 break;
             }
 
@@ -142,21 +165,28 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>) -> vec3<f32> {
             let sphere = spheres[hit_sphere_index];
             let normal = normalize(hit_point - sphere.center);
 
+            // Check if this sphere is emissive (any color component > 1.0)
+            let is_emissive = sphere.color.x > 1.0 || sphere.color.y > 1.0 || sphere.color.z > 1.0;
+            if is_emissive {
+                // This is a light source - multiply by emission and stop bouncing
+                color *= sphere.color;
+                break;
+            }
+
             color *= sphere.color;
 
             // Choose bounce direction based on material type
             var bounce_direction: vec3<f32>;
             if sphere.material_type == 0u {
                 // Lambertian (diffuse)
-                bounce_direction = normalize(normal + random_unit_vector(&seed));
+                bounce_direction = normalize(normal + random_unit_vector(seed));
             } else if sphere.material_type == 1u {
                 // Metal (reflective)
                 bounce_direction = reflect(ray.direction, normal);
             } else {
                 // Default to diffuse
-                bounce_direction = normalize(normal + random_unit_vector(&seed));
+                bounce_direction = normalize(normal + random_unit_vector(seed));
             }
-
 
             ray = Ray(hit_point + normal * 0.001, bounce_direction);
         }
@@ -181,7 +211,9 @@ fn raytracer(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     let pixel = vec2<i32>(global_id.xy);
-    let color = get_pixel_color(size, pixel);
+    var seed = u32(pixel.x) + u32(pixel.y) * size.x;
+
+    let color = get_pixel_color(size, pixel, &seed);
 
     textureStore(output_texture, pixel, vec4<f32>(color, 1.0));
 }

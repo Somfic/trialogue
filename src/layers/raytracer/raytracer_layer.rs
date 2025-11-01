@@ -1,6 +1,7 @@
 use crate::layers::raytracer::{update_raytracer_camera, update_raytracer_scene};
 use crate::prelude::*;
 use bevy_ecs::schedule::Schedule;
+use encase::UniformBuffer;
 use std::time::SystemTime;
 use wgpu::util::DeviceExt;
 
@@ -192,19 +193,22 @@ impl RaytracerLayer {
 
         // Create camera buffer (will be updated by systems)
         let camera_data = RaytracerCamera {
-            position: [0.0, 2.0, 5.0],
-            _padding1: 0.0,
-            look_at: [0.0, 0.0, 0.0],
-            _padding2: 0.0,
-            up: [0.0, 1.0, 0.0],
+            position: Vector3::new(0.0, 2.0, 5.0),
+            look_at: Vector3::new(0.0, 0.0, 0.0),
+            up: Vector3::new(0.0, 1.0, 0.0),
             fov: 60.0,
             aspect_ratio: 16.0 / 9.0,
-            _padding3: [0.0; 3],
+            aperture: 1.0,
+            focus_distance: 10.0,
         };
+
+        let mut buffer_data = UniformBuffer::new(Vec::new());
+        buffer_data.write(&camera_data).unwrap();
+        let bytes = buffer_data.into_inner();
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Raytracer Camera Buffer"),
-            contents: bytemuck::cast_slice(&[camera_data]),
+            contents: &bytes,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 

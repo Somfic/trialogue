@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use encase::{StorageBuffer, UniformBuffer};
 use wgpu::util::DeviceExt;
 
 /// System to collect all spheres and lights and create/update the GPU scene buffer
@@ -20,13 +21,13 @@ pub fn update_raytracer_scene(
     let spheres: Vec<RaytracerSphere> = sphere_query
         .iter()
         .map(|(sphere, transform)| RaytracerSphere {
-            center: [
+            center: Vector3::new(
                 transform.position.x,
                 transform.position.y,
                 transform.position.z,
-            ],
+            ),
             radius: transform.scale.x, // Use x component of scale as radius
-            color: sphere.color,
+            color: Vector3::from_row_slice(&sphere.color),
             material_type: sphere.material_type,
         })
         .collect();
@@ -35,14 +36,13 @@ pub fn update_raytracer_scene(
     let lights: Vec<RaytracerLight> = light_query
         .iter()
         .map(|(light, transform)| RaytracerLight {
-            position: [
+            position: Vector3::new(
                 transform.position.x,
                 transform.position.y,
                 transform.position.z,
-            ],
+            ),
             intensity: light.intensity,
-            color: light.color,
-            _padding: 0.0,
+            color: Vector3::from_row_slice(&light.color),
         })
         .collect();
 
@@ -52,19 +52,27 @@ pub fn update_raytracer_scene(
     // If no scene entity exists, create one
     if scene_query.iter().count() == 0 {
         if sphere_count > 0 || light_count > 0 {
+            let mut spheres_data = StorageBuffer::new(Vec::new());
+            spheres_data.write(&spheres).unwrap();
+            let spheres_bytes = spheres_data.into_inner();
+
             let spheres_buffer = device
                 .0
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Raytracer Spheres Buffer"),
-                    contents: bytemuck::cast_slice(&spheres),
+                    contents: &spheres_bytes,
                     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                 });
+
+            let mut lights_data = StorageBuffer::new(Vec::new());
+            lights_data.write(&lights).unwrap();
+            let lights_bytes = lights_data.into_inner();
 
             let lights_buffer = device
                 .0
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Raytracer Lights Buffer"),
-                    contents: bytemuck::cast_slice(&lights),
+                    contents: &lights_bytes,
                     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                 });
 
@@ -90,21 +98,29 @@ pub fn update_raytracer_scene(
 
             if count_changed {
                 // Recreate buffers if counts changed
+                let mut spheres_data = StorageBuffer::new(Vec::new());
+                spheres_data.write(&spheres).unwrap();
+                let spheres_bytes = spheres_data.into_inner();
+
                 scene.spheres_buffer =
                     device
                         .0
                         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("Raytracer Spheres Buffer"),
-                            contents: bytemuck::cast_slice(&spheres),
+                            contents: &spheres_bytes,
                             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                         });
+
+                let mut lights_data = StorageBuffer::new(Vec::new());
+                lights_data.write(&lights).unwrap();
+                let lights_bytes = lights_data.into_inner();
 
                 scene.lights_buffer =
                     device
                         .0
                         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("Raytracer Lights Buffer"),
-                            contents: bytemuck::cast_slice(&lights),
+                            contents: &lights_bytes,
                             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                         });
 
@@ -119,15 +135,19 @@ pub fn update_raytracer_scene(
             } else if spheres_changed || lights_changed {
                 // Update buffer data if properties changed but counts are the same
                 if spheres_changed && !spheres.is_empty() {
+                    let mut spheres_data = StorageBuffer::new(Vec::new());
+                    spheres_data.write(&spheres).unwrap();
                     queue
                         .0
-                        .write_buffer(&scene.spheres_buffer, 0, bytemuck::cast_slice(&spheres));
+                        .write_buffer(&scene.spheres_buffer, 0, &spheres_data.into_inner());
                 }
 
                 if lights_changed && !lights.is_empty() {
+                    let mut lights_data = StorageBuffer::new(Vec::new());
+                    lights_data.write(&lights).unwrap();
                     queue
                         .0
-                        .write_buffer(&scene.lights_buffer, 0, bytemuck::cast_slice(&lights));
+                        .write_buffer(&scene.lights_buffer, 0, &lights_data.into_inner());
                 }
             }
         }
@@ -146,19 +166,24 @@ pub fn update_raytracer_camera(
             let aspect_ratio = window_size.width as f32 / window_size.height as f32;
 
             let camera_data = RaytracerCamera {
-                position: transform.position.coords.into(),
-                _padding1: 0.0,
-                look_at: camera.target.coords.into(),
-                _padding2: 0.0,
-                up: [0.0, 1.0, 0.0],
+                position: Vector3::new(
+                    transform.position.x,
+                    transform.position.y,
+                    transform.position.z,
+                ),
+                look_at: Vector3::new(camera.target.x, camera.target.y, camera.target.z),
+                up: Vector3::new(0.0, 1.0, 0.0),
                 fov: camera.fovy.to_degrees(),
                 aspect_ratio,
-                _padding3: [0.0; 3],
+                aperture: camera.aperture,
+                focus_distance: camera.focus_distance,
             };
 
+            let mut buffer_data = UniformBuffer::new(Vec::new());
+            buffer_data.write(&camera_data).unwrap();
             queue
                 .0
-                .write_buffer(&buffer.0, 0, bytemuck::cast_slice(&[camera_data]));
+                .write_buffer(&buffer.0, 0, &buffer_data.into_inner());
         } else {
             log::warn!("No main camera found for raytracer");
         }

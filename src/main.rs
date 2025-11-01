@@ -72,6 +72,8 @@ fn main() -> Result<()> {
                 target: Point3::new(0.0, 0.0, 0.0),
                 zfar: 100.0,
                 znear: 0.0001,
+                aperture: 0.1,
+                focus_distance: 10.0,
             },
             RenderTarget {},
         ),

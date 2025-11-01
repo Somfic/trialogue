@@ -14,10 +14,51 @@ impl Inspectable for Sphere {
     fn inspect(&mut self, ui: &mut egui::Ui) {
         ui.label("Note: Position and radius are controlled by Transform component");
 
+        // Check if this is an emissive sphere (any component > 1.0)
+        let is_emissive = self.color[0] > 1.0 || self.color[1] > 1.0 || self.color[2] > 1.0;
+
         ui.horizontal(|ui| {
             ui.label("Color:");
-            ui.color_edit_button_rgb(&mut self.color);
+
+            if is_emissive {
+                // HDR mode - show sliders for values > 1.0
+                ui.label("(HDR)");
+            } else {
+                // Regular mode - show color picker
+                ui.color_edit_button_rgb(&mut self.color);
+            }
         });
+
+        if is_emissive {
+            // HDR sliders for each component
+            ui.horizontal(|ui| {
+                ui.label("R:");
+                ui.add(egui::Slider::new(&mut self.color[0], 0.0..=20.0).logarithmic(true));
+            });
+            ui.horizontal(|ui| {
+                ui.label("G:");
+                ui.add(egui::Slider::new(&mut self.color[1], 0.0..=20.0).logarithmic(true));
+            });
+            ui.horizontal(|ui| {
+                ui.label("B:");
+                ui.add(egui::Slider::new(&mut self.color[2], 0.0..=20.0).logarithmic(true));
+            });
+        }
+
+        // Button to toggle between regular and emissive
+        if ui.button(if is_emissive { "Make Non-Emissive" } else { "Make Emissive" }).clicked() {
+            if is_emissive {
+                // Clamp to [0, 1] range
+                self.color[0] = self.color[0].min(1.0);
+                self.color[1] = self.color[1].min(1.0);
+                self.color[2] = self.color[2].min(1.0);
+            } else {
+                // Boost to emissive range (e.g., 5.0)
+                self.color[0] *= 5.0;
+                self.color[1] *= 5.0;
+                self.color[2] *= 5.0;
+            }
+        }
 
         ui.horizontal(|ui| {
             ui.label("Material:");

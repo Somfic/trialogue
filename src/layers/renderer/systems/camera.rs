@@ -144,7 +144,6 @@ pub fn update_camera_buffers(
 
         let matrix = proj * view;
 
-        // Update the existing buffer
         queue.write_buffer(&gpu_camera.buffer, 0, bytemuck::cast_slice(&[matrix]));
     }
 }
