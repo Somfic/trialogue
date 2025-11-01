@@ -132,7 +132,7 @@ fn hit_sphere(sphere: Sphere, ray: Ray) -> f32 {
     if half_b > 0.0 {
         return 0.0;
     }
-    
+
     let c = dot(oc, oc) - sphere.radius * sphere.radius;
     let discriminant = fma(half_b, half_b, -c); // half_b² - c using fused multiply-add
 
@@ -189,8 +189,8 @@ fn get_environment_color(direction: vec3<f32>) -> vec3<f32> {
 
 // get the color for a specific pixel
 fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) -> vec3<f32> {
-    let bounces = 3;
-    let samples = 1; // Reduced from 16 - we'll use temporal accumulation instead
+    let bounces = 2;
+    let samples = 10; // Reduced from 16 - we'll use temporal accumulation instead
 
     var accumulated_color = vec3(0.0, 0.0, 0.0);
 
@@ -219,14 +219,14 @@ fn get_pixel_color(size: vec2<u32>, pixel: vec2<i32>, seed: ptr<function, u32>) 
             }
 
             // fog
-            let scatter_distance = -log(1.0 - random_float(seed)) / 0.1; // fog density = 0.1
-            if closest_distance < 0.0 || scatter_distance < closest_distance {
-                // Ray hits fog before any object
-                let fog_point = ray.origin + scatter_distance * ray.direction;
-                let fog_color = vec3<f32>(0.7, 0.8, 1.0); // light blue fog
-                color *= fog_color;
-                break;
-            }
+            // let scatter_distance = -log(1.0 - random_float(seed)) / 0.1; // fog density = 0.1
+            // if closest_distance < 0.0 || scatter_distance < closest_distance {
+            //     // Ray hits fog before any object
+            //     let fog_point = ray.origin + scatter_distance * ray.direction;
+            //     let fog_color = vec3<f32>(0.7, 0.8, 1.0); // light blue fog
+            //     color *= fog_color;
+            //     break;
+            // }
 
             // if nothing was hit, return sky color
             if closest_distance < 0.0 {
@@ -289,8 +289,8 @@ fn raytracer(@builtin(global_invocation_id) global_id: vec3<u32>) {
     
     // Temporal accumulation with ping-pong buffers
     var accumulated: vec3<f32>;
-    
-    if (frame_count == 0u) {
+
+    if frame_count == 0u {
         // First frame: just use the new sample
         accumulated = new_sample;
     } else {
