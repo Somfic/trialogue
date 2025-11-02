@@ -63,7 +63,5 @@ pub fn update_mesh_buffers(
         gpu_mesh.vertex_buffer = vertex_buffer;
         gpu_mesh.index_buffer = index_buffer;
         gpu_mesh.index_count = mesh.indices.len() as u32;
-
-        log::debug!("Updated GpuMesh for Entity {:?}", entity);
     }
 }

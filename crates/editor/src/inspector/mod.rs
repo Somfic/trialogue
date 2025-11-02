@@ -88,7 +88,6 @@ impl ComponentInspector {
 
                         // Compare before and after - only mark as changed if different
                         if before != *component {
-                            log::debug!("{} component changed, marking for update", name);
                             changed = true;
                         }
                     });

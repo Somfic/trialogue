@@ -700,12 +700,10 @@ impl Layer for RaytracerLayer {
                 if let Some(entity) = camera_entity {
                     if let Some(mut render_target) = world.get_mut::<GpuRenderTarget>(entity) {
                         render_target.texture = texture.clone();
-                        log::info!("Updated GpuRenderTarget on camera");
                     } else {
                         world.entity_mut(entity).insert(GpuRenderTarget {
                             texture: texture.clone(),
                         });
-                        log::info!("Added GpuRenderTarget to camera");
                     }
                 }
             }
