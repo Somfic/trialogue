@@ -2,9 +2,9 @@ use crate::layers::raytracer::{
     load_environment_map, reload_environment_map, update_raytracer_camera, update_raytracer_scene,
 };
 use crate::prelude::*;
+use crate::shader::{RaytracerShader, create_shader_loader, create_static_shader_loader};
 use bevy_ecs::schedule::Schedule;
 use encase::UniformBuffer;
-use std::time::SystemTime;
 use wgpu::util::DeviceExt;
 
 pub struct RaytracerLayer {
@@ -26,8 +26,6 @@ pub struct RaytracerLayer {
     display_bind_group: Option<wgpu::BindGroup>,
     camera_buffer: wgpu::Buffer,
     schedule: Schedule,
-    shader_path: std::path::PathBuf,
-    last_shader_modified: Option<SystemTime>,
     compute_bind_group_layout: wgpu::BindGroupLayout,
     display_bind_group_layout: wgpu::BindGroupLayout,
     shader_error: Option<String>,
@@ -38,8 +36,8 @@ pub struct RaytracerLayer {
     last_camera_target: Option<Vector3<f32>>,
 }
 
-#[derive(Resource, Clone)]
-pub struct ShaderError(pub Option<String>);
+#[derive(Resource, Clone, Default)]
+pub struct ShaderError(pub std::collections::HashMap<Shader, String>);
 
 impl RaytracerLayer {
     pub fn new(context: &LayerContext) -> Self {
@@ -51,8 +49,19 @@ impl RaytracerLayer {
             (device.0.clone(), queue.0.clone())
         };
 
-        // Load shader
-        let shader = device.create_shader_module(wgpu::include_wgsl!("raytracer.wgsl"));
+        // Load shader - use hot-reload in debug, static in release
+        #[cfg(debug_assertions)]
+        let shader_loader = create_shader_loader(
+            "crates/engine/src/layers/raytracer/raytracer.wgsl",
+            "Raytracer",
+        )
+        .expect("Failed to create shader loader");
+
+        #[cfg(not(debug_assertions))]
+        let shader_loader =
+            create_static_shader_loader(include_str!("raytracer.wgsl"), "Raytracer");
+
+        let shader = shader_loader.get_shader(&device);
 
         // Create bind group layout for compute shader
         let compute_bind_group_layout =
@@ -302,6 +311,17 @@ impl RaytracerLayer {
             world.insert_resource(RaytracerComputePipeline(compute_pipeline.clone()));
             world.insert_resource(RaytracerDisplayPipeline(display_pipeline.clone()));
             world.insert_resource(RaytracerCameraBuffer(camera_buffer.clone()));
+
+            // Store RaytracerShader resource
+            let raytracer_shader = RaytracerShader::new(
+                shader_loader,
+                compute_pipeline.clone(),
+                display_pipeline.clone(),
+            );
+            world.insert_resource(raytracer_shader);
+
+            // Initialize shader error resource
+            world.insert_resource(ShaderError::default());
         }
 
         // Setup systems
@@ -312,17 +332,6 @@ impl RaytracerLayer {
             load_environment_map,
             reload_environment_map,
         ));
-
-        let shader_path = std::path::PathBuf::from("src/shaders/raytracer.wgsl");
-        let last_shader_modified = std::fs::metadata(&shader_path)
-            .ok()
-            .and_then(|m| m.modified().ok());
-
-        // Initialize shader error resource in world
-        {
-            let mut world = context.world.lock().unwrap();
-            world.insert_resource(ShaderError(None));
-        }
 
         // Create accumulation sampler (non-filtering for compute shader compatibility)
         let accumulation_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -354,8 +363,6 @@ impl RaytracerLayer {
             display_bind_group: None,
             camera_buffer,
             schedule,
-            shader_path,
-            last_shader_modified,
             compute_bind_group_layout: compute_bind_group_layout_clone,
             display_bind_group_layout: display_bind_group_layout_clone,
             shader_error: None,
@@ -367,44 +374,12 @@ impl RaytracerLayer {
         }
     }
 
-    fn reload_shader(&mut self, world: &mut World) -> Result<(), Box<dyn std::error::Error>> {
+    fn reload_shader(
+        &mut self,
+        world: &mut World,
+        shader: wgpu::ShaderModule,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Reloading shader...");
-
-        // Read shader file
-        let shader_source = std::fs::read_to_string(&self.shader_path)?;
-
-        // Create new shader module descriptor
-        let shader_descriptor = wgpu::ShaderModuleDescriptor {
-            label: Some("Raytracer Shader (Hot Reloaded)"),
-            source: wgpu::ShaderSource::Wgsl(shader_source.into()),
-        };
-
-        // Try to create the shader module - catch panics from validation errors
-        let shader = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.device.create_shader_module(shader_descriptor)
-        })) {
-            Ok(shader) => {
-                // Success! Clear any previous error
-                self.shader_error = None;
-                world.insert_resource(ShaderError(None));
-                shader
-            }
-            Err(panic_info) => {
-                // Extract error message from panic
-                let error_msg = if let Some(s) = panic_info.downcast_ref::<String>() {
-                    s.clone()
-                } else if let Some(s) = panic_info.downcast_ref::<&str>() {
-                    s.to_string()
-                } else {
-                    "Shader compilation failed with unknown error".to_string()
-                };
-
-                log::error!("Shader compilation failed: {}", error_msg);
-                self.shader_error = Some(error_msg.clone());
-                world.insert_resource(ShaderError(Some(error_msg)));
-                return Err("Shader compilation failed - check console for errors".into());
-            }
-        };
 
         // Recreate compute pipeline
         let compute_pipeline_layout =
@@ -476,8 +451,18 @@ impl RaytracerLayer {
                     cache: None,
                 });
 
-        self.compute_pipeline = compute_pipeline;
-        self.display_pipeline = display_pipeline;
+        self.compute_pipeline = compute_pipeline.clone();
+        self.display_pipeline = display_pipeline.clone();
+
+        // Update pipelines in world resources
+        world.insert_resource(RaytracerComputePipeline(compute_pipeline.clone()));
+        world.insert_resource(RaytracerDisplayPipeline(display_pipeline.clone()));
+
+        // Update RaytracerShader resource
+        if let Some(mut raytracer_shader) = world.get_resource_mut::<RaytracerShader>() {
+            raytracer_shader.compute_pipeline = compute_pipeline;
+            raytracer_shader.display_pipeline = display_pipeline;
+        }
 
         log::info!("Shader reloaded successfully!");
         Ok(())
@@ -490,17 +475,33 @@ impl Layer for RaytracerLayer {
         let (width, height, spheres_buffer, lights_buffer, env_view, env_sampler) = {
             let mut world = context.world.lock().unwrap();
 
-            // Check for shader hot reload
-            if let Ok(metadata) = std::fs::metadata(&self.shader_path) {
-                if let Ok(modified) = metadata.modified() {
-                    if self
-                        .last_shader_modified
-                        .map_or(true, |last| modified > last)
-                    {
-                        self.last_shader_modified = Some(modified);
-                        if let Err(e) = self.reload_shader(&mut world) {
-                            log::error!("Failed to reload shader: {}", e);
+            // Check for shader hot reload using RaytracerShader resource
+            let reload_result = {
+                if let Some(mut raytracer_shader) = world.get_resource_mut::<RaytracerShader>() {
+                    raytracer_shader.check_reload(&self.device)
+                } else {
+                    None
+                }
+            };
+
+            if let Some(reload_result) = reload_result {
+                match reload_result {
+                    Ok((shader, _source)) => {
+                        // Successfully reloaded - update pipelines
+                        if let Err(e) = self.reload_shader(&mut world, shader) {
+                            log::error!("Failed to recreate pipelines after shader reload: {}", e);
+                        } else {
+                            // Clear any previous error
+                            self.shader_error = None;
+                            let mut errors = world.get_resource_mut::<ShaderError>().unwrap();
+                            errors.0.remove(&Shader::Raytracer);
                         }
+                    }
+                    Err(error_msg) => {
+                        // Shader reload failed - store error
+                        self.shader_error = Some(error_msg.clone());
+                        let mut errors = world.get_resource_mut::<ShaderError>().unwrap();
+                        errors.0.insert(Shader::Raytracer, error_msg);
                     }
                 }
             }

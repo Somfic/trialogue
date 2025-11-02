@@ -319,7 +319,7 @@ struct VertexOutput {
 }
 
 @vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
+fn vertex(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     let uv = vec2<f32>(
         f32((vertex_index << 1u) & 2u),
         f32(vertex_index & 2u)
@@ -337,7 +337,7 @@ var result_texture: texture_2d<f32>;
 var result_sampler: sampler;
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(result_texture, result_sampler, in.uv);
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    return textureSample(result_texture, result_sampler, in.uv); 
 }
  

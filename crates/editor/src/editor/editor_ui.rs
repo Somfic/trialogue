@@ -62,21 +62,26 @@ pub fn draw_ui(
 
             // Check for shader errors
             if let Some(shader_error_res) = world.get_resource::<ShaderError>() {
-                if let Some(error) = &shader_error_res.0 {
-                    ui.colored_label(egui::Color32::RED, "❌ Shader Compilation Error:");
-                    ui.separator();
+                if !shader_error_res.0.is_empty() {
+                    for (shader_name, error) in &shader_error_res.0 {
+                        ui.colored_label(egui::Color32::RED, format!("❌ {} Compilation Error:", shader_name));
+                        ui.separator();
 
-                    egui::ScrollArea::vertical()
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| {
-                            ui.add(
-                                egui::TextEdit::multiline(&mut error.as_str())
-                                    .code_editor()
-                                    .desired_width(f32::INFINITY),
-                            );
-                        });
+                        egui::ScrollArea::vertical()
+                            .id_salt(shader_name)
+                            .max_height(100.0)
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut error.as_str())
+                                        .code_editor()
+                                        .desired_width(f32::INFINITY),
+                                );
+                            });
+                        ui.add_space(10.0);
+                    }
                 } else {
-                    ui.colored_label(egui::Color32::GREEN, "✓ Shader compiled successfully");
+                    ui.colored_label(egui::Color32::GREEN, "✓ All shaders compiled successfully");
                 }
             } else {
                 ui.label("No shader status available");

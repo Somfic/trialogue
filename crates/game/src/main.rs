@@ -51,6 +51,19 @@ fn main() -> Result<()> {
         .add_layer(|context| Box::new(EditorLayer::new(context)))
         .build();
 
+    // Register shaders
+    app.register_shader(
+        "crates/engine/src/layers/renderer/shader.wgsl",
+        Shader::Standard,
+        include_str!("../../engine/src/layers/renderer/shader.wgsl"),
+    );
+
+    app.register_shader(
+        "crates/engine/src/layers/raytracer/raytracer.wgsl",
+        Shader::Raytracer,
+        include_str!("../../engine/src/layers/raytracer/raytracer.wgsl"),
+    );
+
     app.spawn(
         "Cat",
         (
@@ -62,6 +75,7 @@ fn main() -> Result<()> {
             Texture {
                 bytes: include_bytes!("cat.png").to_vec(),
             },
+            Material::standard(),
         ),
     );
 
