@@ -52,8 +52,7 @@ impl RaytracerLayer {
         };
 
         // Load shader
-        let shader =
-            device.create_shader_module(wgpu::include_wgsl!("../../shaders/raytracer.wgsl"));
+        let shader = device.create_shader_module(wgpu::include_wgsl!("raytracer.wgsl"));
 
         // Create bind group layout for compute shader
         let compute_bind_group_layout =

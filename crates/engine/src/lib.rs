@@ -1,4 +1,4 @@
-use crate::prelude::*;
+pub use bevy_ecs::world::World;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
@@ -7,8 +7,6 @@ pub type Result<T> = anyhow::Result<T>;
 pub mod components;
 pub mod layers;
 pub mod prelude;
-
-pub use layers::renderer::RenderLayer;
 
 pub trait Layer: 'static {
     fn frame(&mut self, context: &LayerContext) -> std::result::Result<(), wgpu::SurfaceError>;
@@ -83,14 +81,6 @@ where
     }
 }
 
-pub struct RenderLayerFactory;
-
-impl LayerFactory for RenderLayerFactory {
-    fn create(&self, context: &LayerContext) -> Box<dyn Layer> {
-        Box::new(RenderLayer::new(context))
-    }
-}
-
 pub struct Application {
     layer_factories: Vec<Box<dyn LayerFactory>>,
     state: Option<ApplicationState>,
@@ -129,7 +119,8 @@ impl Application {
         Ok(())
     }
 
-    pub fn spawn<B: Bundle>(&mut self, label: impl Into<String>, bundle: B) {
+    pub fn spawn<B: bevy_ecs::bundle::Bundle>(&mut self, label: impl Into<String>, bundle: B) {
+        use crate::prelude::*;
         let bundle = (
             Tag {
                 label: label.into(),

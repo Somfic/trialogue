@@ -1,5 +1,5 @@
-use crate::prelude::*;
 use std::sync::{Arc, Mutex};
+use trialogue_engine::{layers::raytracer::ShaderError, prelude::*};
 
 use super::editor_state::EditorState;
 
@@ -61,9 +61,7 @@ pub fn draw_ui(
             ui.separator();
 
             // Check for shader errors
-            if let Some(shader_error_res) =
-                world.get_resource::<crate::layers::raytracer::ShaderError>()
-            {
+            if let Some(shader_error_res) = world.get_resource::<ShaderError>() {
                 if let Some(error) = &shader_error_res.0 {
                     ui.colored_label(egui::Color32::RED, "❌ Shader Compilation Error:");
                     ui.separator();

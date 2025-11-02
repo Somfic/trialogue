@@ -1,5 +1,5 @@
 use super::{editor_state::EditorState, editor_ui};
-use crate::prelude::*;
+use trialogue_engine::prelude::*;
 
 pub struct EditorLayer {
     surface: wgpu::Surface<'static>,
@@ -125,7 +125,13 @@ impl Layer for EditorLayer {
         let world = context.world.clone();
 
         let egui_output = self.egui_ctx.run(raw_input, |ctx| {
-            editor_ui::draw_ui(context, ctx, &world, viewport_texture_id, &mut self.editor_state);
+            editor_ui::draw_ui(
+                context,
+                ctx,
+                &world,
+                viewport_texture_id,
+                &mut self.editor_state,
+            );
         });
 
         // Handle egui output
@@ -313,8 +319,8 @@ impl Layer for EditorLayer {
 
     fn detach(&mut self, _context: &LayerContext) {}
 
-    fn event(&mut self, context: &LayerContext, event: crate::LayerEvent) {
-        let crate::LayerEvent::WindowEvent(window_event) = event;
+    fn event(&mut self, context: &LayerContext, event: trialogue_engine::LayerEvent) {
+        let trialogue_engine::LayerEvent::WindowEvent(window_event) = event;
 
         // Let egui handle the event first
         let response = self

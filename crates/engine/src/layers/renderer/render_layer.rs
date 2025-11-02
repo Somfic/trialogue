@@ -1,5 +1,3 @@
-use bevy_ecs::schedule::Schedule;
-
 use crate::layers::renderer::systems::{
     initialize_camera_buffers, initialize_mesh_buffers, initialize_render_targets,
     initialize_texture_buffers, initialize_transform_buffers, update_camera_buffers,
@@ -93,7 +91,7 @@ impl RenderLayer {
 
         // shaders - use sRGB format for render targets
         let surface_format = wgpu::TextureFormat::Bgra8UnormSrgb;
-        let shader = device.create_shader_module(wgpu::include_wgsl!("../../shaders/shader.wgsl"));
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),

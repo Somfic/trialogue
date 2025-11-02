@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use trialogue_engine::prelude::*;
 
 #[derive(Default)]
 pub struct EditorState {
