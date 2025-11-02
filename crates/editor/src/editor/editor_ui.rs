@@ -1,9 +1,7 @@
-
 use crate::prelude::*;
-use trialogue_engine::prelude::*;
 
 use std::sync::{Arc, Mutex};
-use trialogue_engine::{layers::raytracer::ShaderError, prelude::*};
+use trialogue_engine::layers::raytracer::ShaderError;
 
 use super::editor_state::EditorState;
 

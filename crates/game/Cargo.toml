@@ -12,6 +12,8 @@ log = { workspace = true }
 env_logger = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
+egui = { workspace = true }
+inventory = { workspace = true }
 
 [build-dependencies]
 build-utils = { path = "../build-utils" }

@@ -1,7 +1,7 @@
 
 use crate::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Clone, PartialEq)]
 pub struct Camera {
     pub is_main: bool,
     pub target: Point3<f32>,

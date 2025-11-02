@@ -5,26 +5,51 @@ mod material;
 mod sphere;
 mod transform;
 
+use crate::prelude::*;
 use bevy_ecs::component::Mutable;
-use trialogue_engine::prelude::*;
+
+pub trait Inspectable {
+    fn inspect(&mut self, ui: &mut egui::Ui);
+}
+
+// Registry entry for auto-registration of inspectable components
+pub struct InspectableRegistration {
+    pub name: &'static str,
+    pub register_fn: fn(&mut ComponentInspector),
+}
+
+// Collect all inspectable registrations at link-time
+inventory::collect!(InspectableRegistration);
+
+// Macro to simplify registering inspectable components
+#[macro_export]
+macro_rules! register_inspectable {
+    ($type:ty, $name:expr) => {
+        inventory::submit! {
+            $crate::inspector::InspectableRegistration {
+                name: $name,
+                register_fn: |inspector| {
+                    inspector.register::<$type>($name);
+                },
+            }
+        }
+    };
+}
 
 // Create and configure the component inspector with all registered components
 pub fn create_component_inspector() -> ComponentInspector {
     let mut inspector = ComponentInspector::new();
 
-    // Register inspectable components
-    inspector.register::<Transform>("Transform");
-    inspector.register::<Camera>("Camera");
-    inspector.register::<Sphere>("Sphere");
-    inspector.register::<Light>("Light");
-    inspector.register::<EnvironmentMap>("Environment Map");
-    inspector.register::<Material>("Material");
+    // Auto-register all components that used the register_inspectable! macro
+    let mut count = 0;
+    for registration in inventory::iter::<InspectableRegistration> {
+        log::info!("Auto-registering inspector for: {}", registration.name);
+        (registration.register_fn)(&mut inspector);
+        count += 1;
+    }
+    log::info!("Total inspectable components registered: {}", count);
 
     inspector
-}
-
-pub trait Inspectable {
-    fn inspect(&mut self, ui: &mut egui::Ui);
 }
 
 // Store inspection logic that can be called per component
@@ -44,16 +69,40 @@ impl ComponentInspector {
     /// Register a component type with its inspector function
     pub fn register<T>(&mut self, name: &'static str)
     where
-        T: Component<Mutability = Mutable> + Inspectable,
+        T: Component<Mutability = Mutable> + Inspectable + Clone + PartialEq,
     {
         let inspect_fn: InspectFn = Box::new(move |world, entity, ui| {
             // Get mutable entity reference
             if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
-                if let Some(mut component) = entity_mut.get_mut::<T>() {
+                // Use bypass_change_detection to get component without marking as changed
+                let has_changed = if let Some(mut component) = entity_mut.get_mut::<T>() {
+                    let component = component.bypass_change_detection();
+
+                    let mut changed = false;
                     ui.collapsing(name, |ui| {
-                        // Dereference Mut<T> to get &mut T
-                        (&mut *component).inspect(ui);
+                        // Clone the component before inspection
+                        let before = component.clone();
+
+                        // Call inspect (may modify the component)
+                        component.inspect(ui);
+
+                        // Compare before and after - only mark as changed if different
+                        if before != *component {
+                            log::debug!("{} component changed, marking for update", name);
+                            changed = true;
+                        }
                     });
+                    changed
+                } else {
+                    false
+                };
+
+                // Mark as changed if needed
+                if has_changed {
+                    // Force change detection by triggering a write
+                    if let Some(mut component) = entity_mut.get_mut::<T>() {
+                        component.set_changed();
+                    }
                 }
             }
         });

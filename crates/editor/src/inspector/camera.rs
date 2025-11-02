@@ -1,6 +1,8 @@
-
 use crate::prelude::*;
 use trialogue_engine::prelude::*;
+
+// Auto-register for inspection
+crate::register_inspectable!(Camera, "Camera");
 
 impl Inspectable for Camera {
     fn inspect(&mut self, ui: &mut egui::Ui) {

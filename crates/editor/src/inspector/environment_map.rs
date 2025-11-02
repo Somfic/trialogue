@@ -1,6 +1,8 @@
-
 use crate::prelude::*;
 use trialogue_engine::prelude::*;
+
+// Auto-register for inspection
+crate::register_inspectable!(EnvironmentMap, "Environment Map");
 
 use rfd;
 

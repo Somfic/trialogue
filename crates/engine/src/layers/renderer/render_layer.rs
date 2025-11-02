@@ -3,7 +3,7 @@ use crate::prelude::*;
 use crate::layers::renderer::systems::{
     initialize_camera_buffers, initialize_mesh_buffers, initialize_render_targets,
     initialize_texture_buffers, initialize_transform_buffers, update_camera_buffers,
-    update_render_targets, update_transform_buffers,
+    update_mesh_buffers, update_render_targets, update_transform_buffers,
 };
 use crate::shader::{BindGroupRequirement, ShaderCache, ShaderInstance};
 
@@ -107,6 +107,7 @@ impl RenderLayer {
         let mut schedule = Schedule::default();
         schedule.add_systems((
             initialize_mesh_buffers,
+            update_mesh_buffers,
             initialize_texture_buffers,
             initialize_camera_buffers,
             initialize_render_targets,

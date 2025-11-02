@@ -4,7 +4,7 @@ use crate::prelude::*;
 /// User-facing component for spawning spheres in the raytracer scene
 /// Position is taken from the Transform component
 /// The Transform's scale.x is used as the radius (uniform scaling)
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, PartialEq)]
 pub struct Sphere {
     pub color: [f32; 3],
     pub material_type: u32, // 0 = lambertian, 1 = metal, 2 = dielectric
@@ -12,7 +12,7 @@ pub struct Sphere {
 
 /// User-facing component for spawning lights in the raytracer scene
 /// Position is taken from the Transform component
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, PartialEq)]
 pub struct Light {
     pub intensity: f32,
     pub color: [f32; 3],
@@ -30,7 +30,7 @@ pub struct GpuRaytracerScene {
 
 /// User-facing component for environment map
 /// Provide either a path or raw bytes to an HDR image
-#[derive(Component)]
+#[derive(Component, Clone, PartialEq)]
 pub struct EnvironmentMap {
     pub bytes: Vec<u8>,
 }

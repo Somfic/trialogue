@@ -1,6 +1,8 @@
-
 use crate::prelude::*;
 use trialogue_engine::prelude::*;
+
+// Auto-register Transform for inspection
+crate::register_inspectable!(Transform, "Transform");
 
 impl Inspectable for Transform {
     fn inspect(&mut self, ui: &mut egui::Ui) {

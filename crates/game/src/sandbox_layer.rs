@@ -1,6 +1,4 @@
-
-use trialogue_editor::prelude::*;
-use trialogue_engine::prelude::*;
+use crate::prelude::*;
 
 use bevy_ecs::schedule::Schedule;
 use trialogue_engine::{Layer, LayerContext};
@@ -11,10 +9,8 @@ pub struct SandboxLayer {
 
 impl SandboxLayer {
     pub fn new(_context: &LayerContext) -> Self {
-        let schedule = Schedule::default();
-        // Add your game systems here
-        // schedule.add_systems(your_game_system);
-
+        let mut schedule = Schedule::default();
+        schedule.add_systems(crate::systems::generate_planet_mesh);
         Self { schedule }
     }
 }

@@ -1,6 +1,8 @@
-
 use crate::prelude::*;
 use trialogue_engine::prelude::*;
+
+// Auto-register for inspection
+crate::register_inspectable!(Light, "Light");
 
 impl Inspectable for Light {
     fn inspect(&mut self, ui: &mut egui::Ui) {

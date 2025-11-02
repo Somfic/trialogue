@@ -1,11 +1,9 @@
-
 use crate::prelude::*;
 
 use crate::layers::raytracer::{
     load_environment_map, reload_environment_map, update_raytracer_camera, update_raytracer_scene,
 };
 use crate::shader::{RaytracerShader, create_shader_loader, create_static_shader_loader};
-use bevy_ecs::schedule::Schedule;
 use encase::UniformBuffer;
 use wgpu::util::DeviceExt;
 

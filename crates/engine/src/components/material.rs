@@ -20,7 +20,7 @@ impl Display for Shader {
 }
 
 /// Material component that references a shader by name
-#[derive(Component, Clone)]
+#[derive(Component, Clone, PartialEq)]
 pub struct Material {
     /// Name of the shader to use (e.g., "standard", "pbr", "unlit")
     pub shader: Shader,

@@ -1,6 +1,8 @@
-
 use crate::prelude::*;
 use trialogue_engine::prelude::*;
+
+// Auto-register for inspection
+crate::register_inspectable!(Sphere, "Sphere");
 
 impl Inspectable for Sphere {
     fn inspect(&mut self, ui: &mut egui::Ui) {
@@ -70,7 +72,9 @@ impl Inspectable for Sphere {
                         ui.selectable_value(&mut selected, i, *name);
                     }
                 });
-            self.material_type = selected as u32;
+            if self.material_type as usize != selected {
+                self.material_type = selected as u32;
+            }
         });
     }
 }

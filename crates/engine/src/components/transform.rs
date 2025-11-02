@@ -1,7 +1,7 @@
 
 use crate::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Clone, PartialEq)]
 pub struct Transform {
     pub position: Point3<f32>,
     pub rotation: UnitQuaternion<f32>,
