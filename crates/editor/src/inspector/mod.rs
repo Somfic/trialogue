@@ -4,12 +4,18 @@ mod light;
 mod material;
 mod sphere;
 mod transform;
+mod mesh;
 
 use crate::prelude::*;
 use bevy_ecs::component::Mutable;
 
 pub trait Inspectable {
     fn inspect(&mut self, ui: &mut egui::Ui);
+}
+
+/// Trait for components that can be inspected in read-only mode (no Clone/PartialEq needed)
+pub trait InspectableReadOnly {
+    fn inspect_readonly(&self, ui: &mut egui::Ui);
 }
 
 // Registry entry for auto-registration of inspectable components
@@ -30,6 +36,21 @@ macro_rules! register_inspectable {
                 name: $name,
                 register_fn: |inspector| {
                     inspector.register::<$type>($name);
+                },
+            }
+        }
+    };
+}
+
+// Macro to simplify registering read-only inspectable components
+#[macro_export]
+macro_rules! register_inspectable_readonly {
+    ($type:ty, $name:expr) => {
+        inventory::submit! {
+            $crate::inspector::InspectableRegistration {
+                name: $name,
+                register_fn: |inspector| {
+                    inspector.register_readonly::<$type>($name);
                 },
             }
         }
@@ -108,12 +129,17 @@ impl ComponentInspector {
         self.inspectors.push((name, inspect_fn));
     }
 
-    /// Register a component type without inspection (read-only display)
-    pub fn register_readonly<T: Component>(&mut self, name: &'static str) {
+    /// Register a component type for read-only inspection (no Clone/PartialEq needed)
+    pub fn register_readonly<T>(&mut self, name: &'static str)
+    where
+        T: Component + InspectableReadOnly,
+    {
         let inspect_fn: InspectFn = Box::new(move |world, entity, ui| {
             if let Ok(entity_ref) = world.get_entity(entity) {
-                if entity_ref.contains::<T>() {
-                    ui.label(format!("• {}", name));
+                if let Some(component) = entity_ref.get::<T>() {
+                    ui.collapsing(name, |ui| {
+                        component.inspect_readonly(ui);
+                    });
                 }
             }
         });

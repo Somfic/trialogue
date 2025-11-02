@@ -3,6 +3,30 @@ use crate::prelude::*;
 
 use wgpu::util::DeviceExt;
 
+/// Custom camera update system that handles aspect ratio changes from GpuCamera
+/// This supplements the trait-based system by watching for GpuCamera changes too
+pub fn update_camera_buffers_custom(
+    queue: Res<GpuQueue>,
+    query: Query<(&Camera, &Transform, &GpuCamera), Or<(Changed<Camera>, Changed<Transform>, Changed<GpuCamera>)>>,
+) {
+    let queue = &queue.0;
+
+    for (camera, transform, gpu_camera) in query.iter() {
+        // Compute the up vector from the rotation quaternion
+        let up = transform.rotation * Vector3::y_axis();
+
+        let view = Isometry3::look_at_rh(&transform.position, &camera.target, &up).to_homogeneous();
+
+        let proj = OPENGL_TO_WGPU
+            * Perspective3::new(gpu_camera.aspect, camera.fovy, camera.znear, camera.zfar)
+                .to_homogeneous();
+
+        let matrix = proj * view;
+
+        queue.write_buffer(&gpu_camera.buffer, 0, bytemuck::cast_slice(&[matrix]));
+    }
+}
+
 #[rustfmt::skip]
 const OPENGL_TO_WGPU: Matrix4<f32> = Matrix4::new(
     1.0, 0.0, 0.0, 0.0,

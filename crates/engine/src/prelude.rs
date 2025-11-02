@@ -1,6 +1,7 @@
 pub use crate::Layer;
 pub use crate::LayerContext;
 pub use crate::components::*;
+pub use crate::gpu_component::*;
 pub use bevy_ecs::prelude::*;
 pub use encase::ShaderType;
 pub use encase::StorageBuffer;

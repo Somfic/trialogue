@@ -1,4 +1,3 @@
-
 use crate::prelude::*;
 
 #[derive(Component)]
@@ -41,4 +40,72 @@ pub type Index = u16;
 
 pub fn index_format() -> wgpu::IndexFormat {
     wgpu::IndexFormat::Uint16
+}
+
+// GPU Component trait implementations
+impl GpuComponent for Mesh {
+    type UserComponent = Mesh;
+    type GpuVariant = GpuMesh;
+}
+
+impl GpuInitialize for Mesh {
+    type Dependencies = ();
+
+    fn initialize(
+        user: &Self::UserComponent,
+        _dependencies: Option<&Self::Dependencies>,
+        device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _context: &GpuContext,
+    ) -> Self::GpuVariant {
+        use wgpu::util::DeviceExt;
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&user.vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&user.indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        GpuMesh {
+            vertex_buffer,
+            index_buffer,
+            index_count: user.indices.len() as u32,
+        }
+    }
+}
+
+impl GpuUpdate for Mesh {
+    fn update(
+        user: &Self::UserComponent,
+        gpu: &mut Self::GpuVariant,
+        _dependencies: Option<&()>,
+        device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+    ) {
+        // Recreate vertex buffer with updated mesh data
+        use wgpu::util::DeviceExt;
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&user.vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&user.indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        // Update the GpuMesh component with new buffers
+        gpu.vertex_buffer = vertex_buffer;
+        gpu.index_buffer = index_buffer;
+        gpu.index_count = user.indices.len() as u32;
+    }
 }

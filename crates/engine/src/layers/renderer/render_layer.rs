@@ -1,9 +1,7 @@
 use crate::prelude::*;
 
 use crate::layers::renderer::systems::{
-    initialize_camera_buffers, initialize_mesh_buffers, initialize_render_targets,
-    initialize_texture_buffers, initialize_transform_buffers, update_camera_buffers,
-    update_mesh_buffers, update_render_targets, update_transform_buffers,
+    initialize_render_targets, update_camera_buffers_custom, update_render_targets,
 };
 use crate::shader::{BindGroupRequirement, ShaderCache, ShaderInstance};
 
@@ -92,6 +90,14 @@ impl RenderLayer {
             world.insert_resource(TransformBindGroupLayout(
                 transform_bind_group_layout.clone(),
             ));
+
+            // Create GpuContext with all bind group layouts
+            let gpu_context = GpuContext::new(
+                texture_bind_group_layout.clone(),
+                camera_bind_group_layout.clone(),
+                transform_bind_group_layout.clone(),
+            );
+            world.insert_resource(gpu_context);
         }
 
         // shaders - use sRGB format for render targets
@@ -106,15 +112,19 @@ impl RenderLayer {
         // ecs
         let mut schedule = Schedule::default();
         schedule.add_systems((
-            initialize_mesh_buffers,
-            update_mesh_buffers,
-            initialize_texture_buffers,
-            initialize_camera_buffers,
+            // Use trait-based generated systems for all components
+            gpu_initialize_system::<Mesh>,
+            gpu_update_system::<Mesh>,
+            gpu_initialize_system::<Texture>,
+            // Texture has no update system (doesn't implement GpuUpdate)
+            gpu_initialize_system::<Transform>,
+            gpu_update_system::<Transform>,
+            gpu_initialize_with_transform_system::<Camera>,
+            // Use custom camera update system that also watches GpuCamera changes (for aspect ratio)
+            update_camera_buffers_custom,
+            // Keep hand-written systems for RenderTarget (special case - depends on WindowSize)
             initialize_render_targets,
             update_render_targets,
-            update_camera_buffers,
-            initialize_transform_buffers,
-            update_transform_buffers,
         ));
 
         Self {

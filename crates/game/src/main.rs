@@ -51,6 +51,7 @@ fn main() -> Result<()> {
             Planet {
                 seed: "ExampleSeed".to_string(),
                 subdivisions: 3,
+                terrain_config: Default::default(),
             },
             Material::standard(),
             Texture {

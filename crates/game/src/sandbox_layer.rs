@@ -10,7 +10,7 @@ pub struct SandboxLayer {
 impl SandboxLayer {
     pub fn new(_context: &LayerContext) -> Self {
         let mut schedule = Schedule::default();
-        schedule.add_systems(crate::systems::generate_planet_mesh);
+        schedule.add_systems(crate::systems::planet_mesh);
         Self { schedule }
     }
 }

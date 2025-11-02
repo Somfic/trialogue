@@ -7,6 +7,7 @@ use crate::prelude::Shader;
 pub type Result<T> = anyhow::Result<T>;
 
 pub mod components;
+pub mod gpu_component;
 pub mod layers;
 pub mod prelude;
 pub mod shader;

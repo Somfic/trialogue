@@ -14,6 +14,7 @@ winit = { workspace = true }
 wgpu = { workspace = true }
 egui = { workspace = true }
 inventory = { workspace = true }
+noise = "0.9.0"
 
 [build-dependencies]
 build-utils = { path = "../build-utils" }
