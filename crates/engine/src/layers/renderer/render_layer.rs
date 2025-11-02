@@ -145,7 +145,11 @@ impl RenderLayer {
         shader: wgpu::ShaderModule,
         shader_source: &str,
     ) -> Result<ShaderInstance, Box<dyn std::error::Error>> {
-        log::info!("Reloading {} shader with render mode {:?}...", shader_type, render_mode);
+        log::info!(
+            "Reloading {} shader with render mode {:?}...",
+            shader_type,
+            render_mode
+        );
 
         // Parse bind group requirements from reloaded shader FIRST
         let bind_group_requirements = BindGroupRequirement::parse_from_shader(shader_source);
@@ -254,11 +258,17 @@ impl Layer for RenderLayer {
                     // Build list of render modes based on supported features
                     let mut render_modes = vec![RenderMode::filled()];
 
-                    if supported_features.map(|f| f.polygon_mode_line).unwrap_or(false) {
+                    if supported_features
+                        .map(|f| f.polygon_mode_line)
+                        .unwrap_or(false)
+                    {
                         render_modes.push(RenderMode::wireframe());
                     }
 
-                    if supported_features.map(|f| f.polygon_mode_point).unwrap_or(false) {
+                    if supported_features
+                        .map(|f| f.polygon_mode_point)
+                        .unwrap_or(false)
+                    {
                         render_modes.push(RenderMode {
                             polygon_mode: wgpu::PolygonMode::Point,
                         });
@@ -276,7 +286,11 @@ impl Layer for RenderLayer {
                                 if let Some(mut shader_cache) =
                                     world.get_resource_mut::<ShaderCache>()
                                 {
-                                    shader_cache.update_shader(&shader, *render_mode, shader_instance);
+                                    shader_cache.update_shader(
+                                        &shader,
+                                        *render_mode,
+                                        shader_instance,
+                                    );
                                 }
                             }
                             Err(e) => {
@@ -350,9 +364,9 @@ impl Layer for RenderLayer {
 
                 for (material, mesh, texture, transform) in mesh_query.iter(&world) {
                     // Look up shader pipeline from cache with render mode
-                    let shader_instance = shader_cache
-                        .as_ref()
-                        .and_then(|cache| cache.get_shader(&material.shader, &material.render_mode));
+                    let shader_instance = shader_cache.as_ref().and_then(|cache| {
+                        cache.get_shader(&material.shader, &material.render_mode)
+                    });
 
                     if let Some(shader_instance) = shader_instance {
                         render_pass.set_pipeline(&shader_instance.pipeline);

@@ -45,9 +45,13 @@ fn main() -> Result<()> {
     );
 
     app.spawn(
-        "Cat",
+        "Planet",
         (
-            Transform::default(),
+            Transform {
+                scale: Vector3::new(500.0, 500.0, 500.0),
+                position: Point3::new(0.0, -250.0, -250.0),
+                ..Default::default()
+            },
             Planet {
                 seed: "ExampleSeed".to_string(),
                 subdivisions: 3,
@@ -65,7 +69,7 @@ fn main() -> Result<()> {
         "Camera",
         (
             Transform {
-                position: Point3::new(0.0, 0.0, 10.0),
+                position: Point3::new(0.0, 0.0, -1000.0),
                 rotation: UnitQuaternion::identity(),
                 scale: Vector3::identity(),
             },

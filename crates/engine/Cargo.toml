@@ -19,6 +19,7 @@ pollster = { workspace = true }
 rand = { workspace = true }
 notify = { workspace = true }
 naga = { workspace = true }
+rayon = { workspace = true }
 
 [build-dependencies]
 naga = { workspace = true }

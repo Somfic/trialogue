@@ -1,4 +1,3 @@
-
 use crate::prelude::*;
 
 use wgpu::util::DeviceExt;
@@ -7,7 +6,10 @@ use wgpu::util::DeviceExt;
 /// This supplements the trait-based system by watching for GpuCamera changes too
 pub fn update_camera_buffers_custom(
     queue: Res<GpuQueue>,
-    query: Query<(&Camera, &Transform, &GpuCamera), Or<(Changed<Camera>, Changed<Transform>, Changed<GpuCamera>)>>,
+    query: Query<
+        (&Camera, &Transform, &GpuCamera),
+        Or<(Changed<Camera>, Changed<Transform>, Changed<GpuCamera>)>,
+    >,
 ) {
     let queue = &queue.0;
 

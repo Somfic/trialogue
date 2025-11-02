@@ -25,6 +25,7 @@ rfd = "0.15"
 rand = "0.9.2"
 notify = "7.0"
 inventory = "0.3"
+rayon = "1.10"
 
 [workspace.dependencies.naga]
 version = "27.0.1"

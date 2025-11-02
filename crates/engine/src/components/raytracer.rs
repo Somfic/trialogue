@@ -1,4 +1,3 @@
-
 use crate::prelude::*;
 
 /// User-facing component for spawning spheres in the raytracer scene

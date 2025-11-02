@@ -31,7 +31,10 @@ impl Inspectable for Material {
                     );
 
                     // Only show Line mode if supported
-                    if supported_features.map(|f| f.polygon_mode_line).unwrap_or(false) {
+                    if supported_features
+                        .map(|f| f.polygon_mode_line)
+                        .unwrap_or(false)
+                    {
                         ui.selectable_value(
                             &mut self.render_mode.polygon_mode,
                             wgpu::PolygonMode::Line,
@@ -40,7 +43,10 @@ impl Inspectable for Material {
                     }
 
                     // Only show Point mode if supported
-                    if supported_features.map(|f| f.polygon_mode_point).unwrap_or(false) {
+                    if supported_features
+                        .map(|f| f.polygon_mode_point)
+                        .unwrap_or(false)
+                    {
                         ui.selectable_value(
                             &mut self.render_mode.polygon_mode,
                             wgpu::PolygonMode::Point,

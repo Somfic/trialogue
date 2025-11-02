@@ -1,5 +1,6 @@
 pub use crate::Layer;
 pub use crate::LayerContext;
+pub use crate::async_task::AsyncTaskTracker;
 pub use crate::components::*;
 pub use crate::gpu_component::*;
 pub use bevy_ecs::prelude::*;

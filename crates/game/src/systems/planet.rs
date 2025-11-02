@@ -1,23 +1,42 @@
 use noise::{NoiseFn, Perlin};
+use rayon::prelude::*;
 
 use crate::prelude::*;
+use crate::sandbox_layer::WorldHandle;
 
-pub fn planet_mesh(mut commands: Commands, query: Query<(Entity, &Planet), Changed<Planet>>) {
+pub fn planet_mesh(
+    world_handle: Res<WorldHandle>,
+    mut tracker: ResMut<AsyncTaskTracker<Entity>>,
+    query: Query<(Entity, &Planet), Changed<Planet>>,
+) {
     for (entity, planet) in query.iter() {
-        let mesh = generate_planet_mesh(planet);
-        commands.entity(entity).insert(mesh);
+        let planet = planet.clone();
+
+        tracker.spawn_async_task_for_entity(
+            world_handle.0.clone(),
+            entity,
+            move || generate_planet_mesh(&planet),
+            |mut entity_mut, mesh| {
+                entity_mut.insert(mesh);
+            },
+        );
     }
 }
 
 fn generate_planet_mesh(planet: &Planet) -> Mesh {
+    let noise = Perlin::new(planet.seed());
+
+    // Generate all 6 faces in parallel
+    let faces_data: Vec<_> = CubeFace::to_vec()
+        .into_par_iter()
+        .map(|face| generate_face_vertices(face, planet, &noise))
+        .collect();
+
+    // Combine results sequentially
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
-    let noise = Perlin::new(planet.seed());
-
-    for face in CubeFace::to_vec() {
-        let (face_vertices, face_indices) = generate_face_vertices(face, planet, &noise);
-
+    for (face_vertices, face_indices) in faces_data {
         let index_offset = vertices.len() as u32;
         vertices.extend(face_vertices);
         indices.extend(face_indices.iter().map(|i| i + index_offset as Index));
@@ -26,6 +45,7 @@ fn generate_planet_mesh(planet: &Planet) -> Mesh {
     Mesh { vertices, indices }
 }
 
+#[derive(Clone, Copy)]
 enum CubeFace {
     PositiveX,
     NegativeX,

@@ -6,6 +6,7 @@ use winit::{application::ApplicationHandler, event::WindowEvent, window::Window}
 use crate::prelude::Shader;
 pub type Result<T> = anyhow::Result<T>;
 
+pub mod async_task;
 pub mod components;
 pub mod gpu_component;
 pub mod layers;
@@ -272,47 +273,46 @@ impl Application {
 
             for render_mode in &render_modes {
                 let render_pipeline =
-                    device_clone
-                        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                            label: Some(&format!(
-                                "{} Pipeline {:?}",
-                                registration.shader, render_mode.polygon_mode
-                            )),
-                            layout: Some(&render_pipeline_layout),
-                            vertex: wgpu::VertexState {
-                                module: &shader,
-                                entry_point: Some("vertex"),
-                                buffers: &[Vertex::desc()],
-                                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            },
-                            fragment: Some(wgpu::FragmentState {
-                                module: &shader,
-                                entry_point: Some("fragment"),
-                                targets: &[Some(wgpu::ColorTargetState {
-                                    format: surface_format,
-                                    blend: Some(wgpu::BlendState::REPLACE),
-                                    write_mask: wgpu::ColorWrites::ALL,
-                                })],
-                                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            }),
-                            primitive: wgpu::PrimitiveState {
-                                topology: wgpu::PrimitiveTopology::TriangleList,
-                                strip_index_format: None,
-                                front_face: wgpu::FrontFace::Ccw,
-                                cull_mode: Some(wgpu::Face::Back),
-                                polygon_mode: render_mode.polygon_mode,
-                                unclipped_depth: false,
-                                conservative: false,
-                            },
-                            depth_stencil: None,
-                            multisample: wgpu::MultisampleState {
-                                count: 1,
-                                mask: !0,
-                                alpha_to_coverage_enabled: false,
-                            },
-                            multiview: None,
-                            cache: None,
-                        });
+                    device_clone.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                        label: Some(&format!(
+                            "{} Pipeline {:?}",
+                            registration.shader, render_mode.polygon_mode
+                        )),
+                        layout: Some(&render_pipeline_layout),
+                        vertex: wgpu::VertexState {
+                            module: &shader,
+                            entry_point: Some("vertex"),
+                            buffers: &[Vertex::desc()],
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                        },
+                        fragment: Some(wgpu::FragmentState {
+                            module: &shader,
+                            entry_point: Some("fragment"),
+                            targets: &[Some(wgpu::ColorTargetState {
+                                format: surface_format,
+                                blend: Some(wgpu::BlendState::REPLACE),
+                                write_mask: wgpu::ColorWrites::ALL,
+                            })],
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                        }),
+                        primitive: wgpu::PrimitiveState {
+                            topology: wgpu::PrimitiveTopology::TriangleList,
+                            strip_index_format: None,
+                            front_face: wgpu::FrontFace::Ccw,
+                            cull_mode: Some(wgpu::Face::Back),
+                            polygon_mode: render_mode.polygon_mode,
+                            unclipped_depth: false,
+                            conservative: false,
+                        },
+                        depth_stencil: None,
+                        multisample: wgpu::MultisampleState {
+                            count: 1,
+                            mask: !0,
+                            alpha_to_coverage_enabled: false,
+                        },
+                        multiview: None,
+                        cache: None,
+                    });
 
                 let shader_instance = ShaderInstance {
                     module: shader.clone(),

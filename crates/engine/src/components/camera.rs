@@ -1,4 +1,3 @@
-
 use crate::prelude::*;
 
 #[derive(Component, Clone, PartialEq)]

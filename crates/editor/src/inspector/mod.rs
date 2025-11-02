@@ -2,9 +2,9 @@ mod camera;
 mod environment_map;
 mod light;
 mod material;
+mod mesh;
 mod sphere;
 mod transform;
-mod mesh;
 
 use crate::prelude::*;
 use bevy_ecs::component::Mutable;

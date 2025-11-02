@@ -420,7 +420,11 @@ impl ShaderCache {
     }
 
     /// Get a shader instance by name and render mode
-    pub fn get_shader(&self, shader: &Shader, render_mode: &RenderMode) -> Option<Arc<ShaderInstance>> {
+    pub fn get_shader(
+        &self,
+        shader: &Shader,
+        render_mode: &RenderMode,
+    ) -> Option<Arc<ShaderInstance>> {
         let key = ShaderKey::new(shader.clone(), *render_mode);
         self.shaders.get(&key).cloned()
     }
@@ -451,7 +455,12 @@ impl ShaderCache {
     }
 
     /// Update a shader instance after successful reload for a specific render mode
-    pub fn update_shader(&mut self, shader: &Shader, render_mode: RenderMode, instance: ShaderInstance) {
+    pub fn update_shader(
+        &mut self,
+        shader: &Shader,
+        render_mode: RenderMode,
+        instance: ShaderInstance,
+    ) {
         let key = ShaderKey::new(shader.clone(), render_mode);
         self.shaders.insert(key, Arc::new(instance));
     }
