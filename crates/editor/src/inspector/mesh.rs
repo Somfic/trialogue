@@ -9,10 +9,6 @@ impl InspectableReadOnly for Mesh {
         let indices = format_with_separator(self.indices.len());
         let triangles = format_with_separator(self.indices.len() / 3);
 
-        ui.label(format!("Vertices: {}", vertices));
-        ui.label(format!("Indices: {}", indices));
-        ui.label(format!("Triangles: {}", triangles));
-
         // Calculate approximate memory usage
         let vertex_bytes = self.vertices.len() * std::mem::size_of::<Vertex>();
         let index_bytes = self.indices.len() * std::mem::size_of::<Index>();
@@ -28,7 +24,26 @@ impl InspectableReadOnly for Mesh {
             (total_bytes, "B")
         };
 
-        ui.label(format!("Memory: {:.2} {}", size, unit));
+        egui::Grid::new("mesh_info")
+            .num_columns(2)
+            .spacing([40.0, 4.0])
+            .show(ui, |ui| {
+                ui.label("Vertices:");
+                ui.label(&vertices);
+                ui.end_row();
+
+                ui.label("Indices:");
+                ui.label(&indices);
+                ui.end_row();
+
+                ui.label("Triangles:");
+                ui.label(&triangles);
+                ui.end_row();
+
+                ui.label("Memory:");
+                ui.label(format!("{:.2} {}", size, unit));
+                ui.end_row();
+            });
     }
 }
 

@@ -1,7 +1,4 @@
-
 use crate::prelude::*;
-
-use bevy_ecs::component::Component;
 use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -19,25 +16,63 @@ impl Display for Shader {
     }
 }
 
-/// Material component that references a shader by name
+/// Rendering mode configuration for materials
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RenderMode {
+    pub polygon_mode: wgpu::PolygonMode,
+    // Future render mode properties can be added here:
+    // pub cull_mode: Option<wgpu::Face>,
+    // pub depth_test: bool,
+    // etc.
+}
+
+impl RenderMode {
+    pub fn filled() -> Self {
+        Self {
+            polygon_mode: wgpu::PolygonMode::Fill,
+        }
+    }
+
+    pub fn wireframe() -> Self {
+        Self {
+            polygon_mode: wgpu::PolygonMode::Line,
+        }
+    }
+}
+
+impl Default for RenderMode {
+    fn default() -> Self {
+        Self::filled()
+    }
+}
+
 #[derive(Component, Clone, PartialEq)]
 pub struct Material {
-    /// Name of the shader to use (e.g., "standard", "pbr", "unlit")
     pub shader: Shader,
-    // Future material properties can be added here:
-    // pub albedo: Color,
-    // pub roughness: f32,
-    // pub metallic: f32,
-    // etc.
+    pub render_mode: RenderMode,
 }
 
 impl Material {
     pub fn new(shader: Shader) -> Self {
-        Self { shader }
+        Self {
+            shader,
+            render_mode: RenderMode::default(),
+        }
     }
 
-    /// Create a material using the standard shader
     pub fn standard() -> Self {
         Self::new(Shader::Standard)
+    }
+
+    /// Set the render mode for this material
+    pub fn with_render_mode(mut self, render_mode: RenderMode) -> Self {
+        self.render_mode = render_mode;
+        self
+    }
+
+    /// Enable wireframe mode
+    pub fn wireframe(mut self) -> Self {
+        self.render_mode = RenderMode::wireframe();
+        self
     }
 }

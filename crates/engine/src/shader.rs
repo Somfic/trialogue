@@ -367,10 +367,26 @@ pub struct ShaderInstance {
     pub bind_group_requirements: Vec<Option<BindGroupRequirement>>,
 }
 
+/// Cache key that combines shader and render mode
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ShaderKey {
+    pub shader: Shader,
+    pub render_mode: RenderMode,
+}
+
+impl ShaderKey {
+    pub fn new(shader: Shader, render_mode: RenderMode) -> Self {
+        Self {
+            shader,
+            render_mode,
+        }
+    }
+}
+
 /// Central cache for managing shaders and their hot-reload state
 #[derive(Resource)]
 pub struct ShaderCache {
-    shaders: HashMap<Shader, Arc<ShaderInstance>>,
+    shaders: HashMap<ShaderKey, Arc<ShaderInstance>>,
     loaders: HashMap<Shader, Box<dyn ShaderLoader>>,
     sources: HashMap<Shader, String>,
 }
@@ -384,22 +400,29 @@ impl ShaderCache {
         }
     }
 
-    /// Register a shader with the cache
+    /// Register a shader with the cache for a specific render mode
     pub fn register_shader(
         &mut self,
         shader: Shader,
+        render_mode: RenderMode,
         loader: Box<dyn ShaderLoader>,
         instance: ShaderInstance,
     ) {
+        let key = ShaderKey::new(shader.clone(), render_mode);
         let source = loader.get_source();
-        self.shaders.insert(shader.clone(), Arc::new(instance));
+        self.shaders.insert(key, Arc::new(instance));
         self.sources.insert(shader.clone(), source);
-        self.loaders.insert(shader.clone(), loader);
+
+        // Only store one loader per shader (loaders are shared across render modes)
+        if !self.loaders.contains_key(&shader) {
+            self.loaders.insert(shader, loader);
+        }
     }
 
-    /// Get a shader instance by name
-    pub fn get_shader(&self, name: &Shader) -> Option<Arc<ShaderInstance>> {
-        self.shaders.get(name).cloned()
+    /// Get a shader instance by name and render mode
+    pub fn get_shader(&self, shader: &Shader, render_mode: &RenderMode) -> Option<Arc<ShaderInstance>> {
+        let key = ShaderKey::new(shader.clone(), *render_mode);
+        self.shaders.get(&key).cloned()
     }
 
     /// Get the shader source by name
@@ -427,14 +450,15 @@ impl ShaderCache {
         reloaded
     }
 
-    /// Update a shader instance after successful reload
-    pub fn update_shader(&mut self, shader: &Shader, instance: ShaderInstance) {
-        self.shaders.insert(shader.clone(), Arc::new(instance));
+    /// Update a shader instance after successful reload for a specific render mode
+    pub fn update_shader(&mut self, shader: &Shader, render_mode: RenderMode, instance: ShaderInstance) {
+        let key = ShaderKey::new(shader.clone(), render_mode);
+        self.shaders.insert(key, Arc::new(instance));
     }
 
     /// Get all shader names
     pub fn shader_names(&self) -> impl Iterator<Item = &Shader> {
-        self.shaders.keys()
+        self.loaders.keys()
     }
 }
 

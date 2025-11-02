@@ -28,7 +28,7 @@ impl DeviceLayer {
 
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: None,
-            required_features: wgpu::Features::empty(),
+            required_features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::POLYGON_MODE_POINT,
             experimental_features: wgpu::ExperimentalFeatures::disabled(),
             required_limits: if cfg!(target_arch = "wasm32") {
                 wgpu::Limits::downlevel_webgl2_defaults()

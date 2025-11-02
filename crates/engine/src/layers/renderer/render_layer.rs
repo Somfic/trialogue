@@ -141,10 +141,11 @@ impl RenderLayer {
     fn reload_shader(
         &mut self,
         shader_type: &Shader,
+        render_mode: RenderMode,
         shader: wgpu::ShaderModule,
         shader_source: &str,
     ) -> Result<ShaderInstance, Box<dyn std::error::Error>> {
-        log::info!("Reloading {} shader...", shader_type);
+        log::info!("Reloading {} shader with render mode {:?}...", shader_type, render_mode);
 
         // Parse bind group requirements from reloaded shader FIRST
         let bind_group_requirements = BindGroupRequirement::parse_from_shader(shader_source);
@@ -207,7 +208,7 @@ impl RenderLayer {
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
                     cull_mode: Some(wgpu::Face::Back),
-                    polygon_mode: wgpu::PolygonMode::Fill,
+                    polygon_mode: render_mode.polygon_mode,
                     unclipped_depth: false,
                     conservative: false,
                 },
@@ -242,27 +243,49 @@ impl Layer for RenderLayer {
             }
         };
 
-        // Process reloaded shaders
+        // Process reloaded shaders - need to recreate pipelines for all render modes
         for (shader, reload_result) in reloaded_shaders {
             use crate::layers::raytracer::ShaderError;
             match reload_result {
                 Ok((shader_module, shader_source)) => {
-                    // Successfully reloaded - recreate pipeline
-                    match self.reload_shader(&shader, shader_module, &shader_source) {
-                        Ok(shader_instance) => {
-                            // Update shader cache with new instance
-                            if let Some(mut shader_cache) = world.get_resource_mut::<ShaderCache>()
-                            {
-                                shader_cache.update_shader(&shader, shader_instance);
+                    // Successfully reloaded - recreate pipelines for all render modes
+                    let render_modes = [
+                        RenderMode::filled(),
+                        RenderMode::wireframe(),
+                        RenderMode {
+                            polygon_mode: wgpu::PolygonMode::Point,
+                        },
+                    ];
+
+                    for render_mode in render_modes {
+                        match self.reload_shader(
+                            &shader,
+                            render_mode,
+                            shader_module.clone(),
+                            &shader_source,
+                        ) {
+                            Ok(shader_instance) => {
+                                // Update shader cache with new instance
+                                if let Some(mut shader_cache) =
+                                    world.get_resource_mut::<ShaderCache>()
+                                {
+                                    shader_cache.update_shader(&shader, render_mode, shader_instance);
+                                }
                             }
-                            // Clear any previous error
-                            if let Some(mut errors) = world.get_resource_mut::<ShaderError>() {
-                                errors.0.remove(&shader);
+                            Err(e) => {
+                                log::error!(
+                                    "Failed to recreate pipeline for {} with render mode {:?}: {}",
+                                    shader,
+                                    render_mode,
+                                    e
+                                );
                             }
                         }
-                        Err(e) => {
-                            log::error!("Failed to recreate pipeline for {}: {}", shader, e);
-                        }
+                    }
+
+                    // Clear any previous error
+                    if let Some(mut errors) = world.get_resource_mut::<ShaderError>() {
+                        errors.0.remove(&shader);
                     }
                 }
                 Err(error_msg) => {
@@ -319,10 +342,10 @@ impl Layer for RenderLayer {
                 });
 
                 for (material, mesh, texture, transform) in mesh_query.iter(&world) {
-                    // Look up shader pipeline from cache
+                    // Look up shader pipeline from cache with render mode
                     let shader_instance = shader_cache
                         .as_ref()
-                        .and_then(|cache| cache.get_shader(&material.shader));
+                        .and_then(|cache| cache.get_shader(&material.shader, &material.render_mode));
 
                     if let Some(shader_instance) = shader_instance {
                         render_pass.set_pipeline(&shader_instance.pipeline);

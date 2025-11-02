@@ -234,7 +234,7 @@ impl Application {
                 }
             }
 
-            // Create render pipeline
+            // Create render pipelines for all render modes
             let surface_format = wgpu::TextureFormat::Bgra8UnormSrgb;
             let render_pipeline_layout =
                 device
@@ -245,57 +245,101 @@ impl Application {
                         push_constant_ranges: &[],
                     });
 
-            let render_pipeline =
-                device
-                    .0
-                    .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                        label: Some(&format!("{} Pipeline", registration.shader)),
-                        layout: Some(&render_pipeline_layout),
-                        vertex: wgpu::VertexState {
-                            module: &shader,
-                            entry_point: Some("vertex"),
-                            buffers: &[Vertex::desc()],
-                            compilation_options: wgpu::PipelineCompilationOptions::default(),
-                        },
-                        fragment: Some(wgpu::FragmentState {
-                            module: &shader,
-                            entry_point: Some("fragment"),
-                            targets: &[Some(wgpu::ColorTargetState {
-                                format: surface_format,
-                                blend: Some(wgpu::BlendState::REPLACE),
-                                write_mask: wgpu::ColorWrites::ALL,
-                            })],
-                            compilation_options: wgpu::PipelineCompilationOptions::default(),
-                        }),
-                        primitive: wgpu::PrimitiveState {
-                            topology: wgpu::PrimitiveTopology::TriangleList,
-                            strip_index_format: None,
-                            front_face: wgpu::FrontFace::Ccw,
-                            cull_mode: Some(wgpu::Face::Back),
-                            polygon_mode: wgpu::PolygonMode::Fill,
-                            unclipped_depth: false,
-                            conservative: false,
-                        },
-                        depth_stencil: None,
-                        multisample: wgpu::MultisampleState {
-                            count: 1,
-                            mask: !0,
-                            alpha_to_coverage_enabled: false,
-                        },
-                        multiview: None,
-                        cache: None,
-                    });
+            let render_modes = [
+                RenderMode::filled(),
+                RenderMode::wireframe(),
+                RenderMode {
+                    polygon_mode: wgpu::PolygonMode::Point,
+                },
+            ];
 
-            let shader_instance = ShaderInstance {
-                module: shader,
-                pipeline: render_pipeline,
-                bind_group_requirements,
-            };
+            // Clone bind_group_requirements once for all pipelines
+            let bind_group_requirements_clone = bind_group_requirements.clone();
 
-            // Register with shader cache
-            let mut shader_cache = world.get_resource_mut::<ShaderCache>()
-                .ok_or_else(|| anyhow::anyhow!("ShaderCache resource not found - make sure RenderLayer is added before registering shaders"))?;
-            shader_cache.register_shader(registration.shader, shader_loader, shader_instance);
+            // Clone device for later use (to avoid borrow issues)
+            let device_clone = device.0.clone();
+
+            // Create all shader instances first
+            let mut instances: Vec<(RenderMode, ShaderInstance)> = Vec::new();
+
+            for render_mode in render_modes {
+                let render_pipeline =
+                    device_clone
+                        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                            label: Some(&format!(
+                                "{} Pipeline {:?}",
+                                registration.shader, render_mode.polygon_mode
+                            )),
+                            layout: Some(&render_pipeline_layout),
+                            vertex: wgpu::VertexState {
+                                module: &shader,
+                                entry_point: Some("vertex"),
+                                buffers: &[Vertex::desc()],
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            },
+                            fragment: Some(wgpu::FragmentState {
+                                module: &shader,
+                                entry_point: Some("fragment"),
+                                targets: &[Some(wgpu::ColorTargetState {
+                                    format: surface_format,
+                                    blend: Some(wgpu::BlendState::REPLACE),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                })],
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            }),
+                            primitive: wgpu::PrimitiveState {
+                                topology: wgpu::PrimitiveTopology::TriangleList,
+                                strip_index_format: None,
+                                front_face: wgpu::FrontFace::Ccw,
+                                cull_mode: Some(wgpu::Face::Back),
+                                polygon_mode: render_mode.polygon_mode,
+                                unclipped_depth: false,
+                                conservative: false,
+                            },
+                            depth_stencil: None,
+                            multisample: wgpu::MultisampleState {
+                                count: 1,
+                                mask: !0,
+                                alpha_to_coverage_enabled: false,
+                            },
+                            multiview: None,
+                            cache: None,
+                        });
+
+                let shader_instance = ShaderInstance {
+                    module: shader.clone(),
+                    pipeline: render_pipeline,
+                    bind_group_requirements: bind_group_requirements_clone.clone(),
+                };
+
+                instances.push((render_mode, shader_instance));
+            }
+
+            // Register all instances with shader cache
+            let mut shader_cache = world.get_resource_mut::<ShaderCache>().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "ShaderCache resource not found - make sure RenderLayer is added before registering shaders"
+                )
+            })?;
+
+            let mut shader_loader_opt = Some(shader_loader);
+
+            for (i, (render_mode, shader_instance)) in instances.into_iter().enumerate() {
+                // Only register shader loader once (for the first render mode)
+                let loader: Box<dyn ShaderLoader> = if i == 0 {
+                    shader_loader_opt.take().unwrap()
+                } else {
+                    // For other render modes, use dummy loader - only the first one is actually used for hot reloading
+                    Box::new(StaticShaderLoader::new("", ""))
+                };
+
+                shader_cache.register_shader(
+                    registration.shader.clone(),
+                    render_mode,
+                    loader,
+                    shader_instance,
+                );
+            }
         }
 
         Ok(())
