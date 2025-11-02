@@ -5,7 +5,7 @@ use trialogue_engine::prelude::*;
 crate::register_inspectable!(Camera, "Camera");
 
 impl Inspectable for Camera {
-    fn inspect(&mut self, ui: &mut egui::Ui) {
+    fn inspect(&mut self, ui: &mut egui::Ui, _world: &World) {
         ui.checkbox(&mut self.is_main, "Is Main Camera");
 
         ui.horizontal(|ui| {

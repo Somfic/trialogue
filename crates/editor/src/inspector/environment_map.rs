@@ -7,7 +7,7 @@ crate::register_inspectable!(EnvironmentMap, "Environment Map");
 use rfd;
 
 impl Inspectable for EnvironmentMap {
-    fn inspect(&mut self, ui: &mut egui::Ui) {
+    fn inspect(&mut self, ui: &mut egui::Ui, _world: &World) {
         ui.label(format!("Environment Map ({} bytes)", self.bytes.len()));
 
         if ui.button("Load HDR file...").clicked() {

@@ -5,7 +5,7 @@ use trialogue_engine::prelude::*;
 crate::register_inspectable!(Transform, "Transform");
 
 impl Inspectable for Transform {
-    fn inspect(&mut self, ui: &mut egui::Ui) {
+    fn inspect(&mut self, ui: &mut egui::Ui, _world: &World) {
         ui.horizontal(|ui| {
             ui.label("Position:");
             ui.add(

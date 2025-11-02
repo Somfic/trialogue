@@ -193,6 +193,9 @@ impl Application {
             let transform_layout = world
                 .get_resource::<TransformBindGroupLayout>()
                 .ok_or_else(|| anyhow::anyhow!("TransformBindGroupLayout resource not found"))?;
+            let supported_features = world
+                .get_resource::<SupportedFeatures>()
+                .ok_or_else(|| anyhow::anyhow!("SupportedFeatures resource not found"))?;
 
             // Create shader loader based on build configuration
             #[cfg(debug_assertions)]
@@ -245,13 +248,18 @@ impl Application {
                         push_constant_ranges: &[],
                     });
 
-            let render_modes = [
-                RenderMode::filled(),
-                RenderMode::wireframe(),
-                RenderMode {
+            // Build list of render modes based on supported features
+            let mut render_modes = vec![RenderMode::filled()];
+
+            if supported_features.polygon_mode_line {
+                render_modes.push(RenderMode::wireframe());
+            }
+
+            if supported_features.polygon_mode_point {
+                render_modes.push(RenderMode {
                     polygon_mode: wgpu::PolygonMode::Point,
-                },
-            ];
+                });
+            }
 
             // Clone bind_group_requirements once for all pipelines
             let bind_group_requirements_clone = bind_group_requirements.clone();
@@ -262,7 +270,7 @@ impl Application {
             // Create all shader instances first
             let mut instances: Vec<(RenderMode, ShaderInstance)> = Vec::new();
 
-            for render_mode in render_modes {
+            for render_mode in &render_modes {
                 let render_pipeline =
                     device_clone
                         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -312,7 +320,7 @@ impl Application {
                     bind_group_requirements: bind_group_requirements_clone.clone(),
                 };
 
-                instances.push((render_mode, shader_instance));
+                instances.push((*render_mode, shader_instance));
             }
 
             // Register all instances with shader cache

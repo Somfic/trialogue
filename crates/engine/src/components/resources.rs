@@ -184,3 +184,9 @@ pub struct RaytracerEnvironmentMap {
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
+
+#[derive(Resource, Default)]
+pub struct SupportedFeatures {
+    pub polygon_mode_line: bool,
+    pub polygon_mode_point: bool,
+}

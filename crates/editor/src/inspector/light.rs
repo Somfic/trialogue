@@ -5,7 +5,7 @@ use trialogue_engine::prelude::*;
 crate::register_inspectable!(Light, "Light");
 
 impl Inspectable for Light {
-    fn inspect(&mut self, ui: &mut egui::Ui) {
+    fn inspect(&mut self, ui: &mut egui::Ui, _world: &World) {
         ui.label("Note: Position is controlled by Transform component");
 
         ui.horizontal(|ui| {

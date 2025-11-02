@@ -5,7 +5,7 @@ use trialogue_engine::prelude::*;
 crate::register_inspectable!(Sphere, "Sphere");
 
 impl Inspectable for Sphere {
-    fn inspect(&mut self, ui: &mut egui::Ui) {
+    fn inspect(&mut self, ui: &mut egui::Ui, _world: &World) {
         ui.label("Note: Position and radius are controlled by Transform component");
 
         // Check if this is an emissive sphere (any component > 1.0)

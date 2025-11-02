@@ -43,7 +43,7 @@ impl Default for TerrainConfig {
 trialogue_editor::register_inspectable!(Planet, "Planet");
 
 impl Inspectable for Planet {
-    fn inspect(&mut self, ui: &mut Ui) {
+    fn inspect(&mut self, ui: &mut Ui, _world: &World) {
         ui.horizontal(|ui| {
             ui.label("Seed:");
             ui.text_edit_singleline(&mut self.seed);

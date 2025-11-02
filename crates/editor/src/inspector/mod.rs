@@ -10,7 +10,7 @@ use crate::prelude::*;
 use bevy_ecs::component::Mutable;
 
 pub trait Inspectable {
-    fn inspect(&mut self, ui: &mut egui::Ui);
+    fn inspect(&mut self, ui: &mut egui::Ui, world: &World);
 }
 
 /// Trait for components that can be inspected in read-only mode (no Clone/PartialEq needed)
@@ -93,35 +93,34 @@ impl ComponentInspector {
         T: Component<Mutability = Mutable> + Inspectable + Clone + PartialEq,
     {
         let inspect_fn: InspectFn = Box::new(move |world, entity, ui| {
-            // Get mutable entity reference
-            if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
-                // Use bypass_change_detection to get component without marking as changed
-                let has_changed = if let Some(mut component) = entity_mut.get_mut::<T>() {
-                    let component = component.bypass_change_detection();
+            // First, extract the component data we need
+            let component_data = if let Ok(entity_ref) = world.get_entity(entity) {
+                entity_ref.get::<T>().map(|c| c.clone())
+            } else {
+                None
+            };
 
-                    let mut changed = false;
-                    ui.collapsing(name, |ui| {
-                        // Clone the component before inspection
-                        let before = component.clone();
+            if let Some(mut component) = component_data {
+                let mut changed = false;
+                ui.collapsing(name, |ui| {
+                    // Clone the component before inspection
+                    let before = component.clone();
 
-                        // Call inspect (may modify the component)
-                        component.inspect(ui);
+                    // Call inspect (may modify the component)
+                    component.inspect(ui, world);
 
-                        // Compare before and after - only mark as changed if different
-                        if before != *component {
-                            changed = true;
+                    // Compare before and after - only mark as changed if different
+                    if before != component {
+                        changed = true;
+                    }
+                });
+
+                // If changed, write back to the entity
+                if changed {
+                    if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                        if let Some(mut comp) = entity_mut.get_mut::<T>() {
+                            *comp = component;
                         }
-                    });
-                    changed
-                } else {
-                    false
-                };
-
-                // Mark as changed if needed
-                if has_changed {
-                    // Force change detection by triggering a write
-                    if let Some(mut component) = entity_mut.get_mut::<T>() {
-                        component.set_changed();
                     }
                 }
             }

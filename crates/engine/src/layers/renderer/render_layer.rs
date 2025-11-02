@@ -248,19 +248,26 @@ impl Layer for RenderLayer {
             use crate::layers::raytracer::ShaderError;
             match reload_result {
                 Ok((shader_module, shader_source)) => {
-                    // Successfully reloaded - recreate pipelines for all render modes
-                    let render_modes = [
-                        RenderMode::filled(),
-                        RenderMode::wireframe(),
-                        RenderMode {
-                            polygon_mode: wgpu::PolygonMode::Point,
-                        },
-                    ];
+                    // Get supported features to determine which render modes to create
+                    let supported_features = world.get_resource::<SupportedFeatures>();
 
-                    for render_mode in render_modes {
+                    // Build list of render modes based on supported features
+                    let mut render_modes = vec![RenderMode::filled()];
+
+                    if supported_features.map(|f| f.polygon_mode_line).unwrap_or(false) {
+                        render_modes.push(RenderMode::wireframe());
+                    }
+
+                    if supported_features.map(|f| f.polygon_mode_point).unwrap_or(false) {
+                        render_modes.push(RenderMode {
+                            polygon_mode: wgpu::PolygonMode::Point,
+                        });
+                    }
+
+                    for render_mode in &render_modes {
                         match self.reload_shader(
                             &shader,
-                            render_mode,
+                            *render_mode,
                             shader_module.clone(),
                             &shader_source,
                         ) {
@@ -269,7 +276,7 @@ impl Layer for RenderLayer {
                                 if let Some(mut shader_cache) =
                                     world.get_resource_mut::<ShaderCache>()
                                 {
-                                    shader_cache.update_shader(&shader, render_mode, shader_instance);
+                                    shader_cache.update_shader(&shader, *render_mode, shader_instance);
                                 }
                             }
                             Err(e) => {

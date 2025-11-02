@@ -26,9 +26,24 @@ impl DeviceLayer {
         }))
         .unwrap();
 
+        // Check which polygon mode features are supported
+        let adapter_features = adapter.features();
+        let mut features = wgpu::Features::empty();
+        let mut supported_features = SupportedFeatures::default();
+
+        if adapter_features.contains(wgpu::Features::POLYGON_MODE_LINE) {
+            features |= wgpu::Features::POLYGON_MODE_LINE;
+            supported_features.polygon_mode_line = true;
+        }
+
+        if adapter_features.contains(wgpu::Features::POLYGON_MODE_POINT) {
+            features |= wgpu::Features::POLYGON_MODE_POINT;
+            supported_features.polygon_mode_point = true;
+        }
+
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: None,
-            required_features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::POLYGON_MODE_POINT,
+            required_features: features,
             experimental_features: wgpu::ExperimentalFeatures::disabled(),
             required_limits: if cfg!(target_arch = "wasm32") {
                 wgpu::Limits::downlevel_webgl2_defaults()
@@ -46,6 +61,7 @@ impl DeviceLayer {
         world.insert_resource(GpuQueue(queue));
         world.insert_resource(GpuAdapter(Some(adapter)));
         world.insert_resource(GpuSurface(Some(surface)));
+        world.insert_resource(supported_features);
         world.insert_resource(WindowSize {
             width: size.width,
             height: size.height,
