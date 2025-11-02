@@ -1,3 +1,7 @@
+
+use crate::prelude::*;
+use trialogue_engine::prelude::*;
+
 use std::sync::{Arc, Mutex};
 use trialogue_engine::{layers::raytracer::ShaderError, prelude::*};
 
@@ -64,7 +68,10 @@ pub fn draw_ui(
             if let Some(shader_error_res) = world.get_resource::<ShaderError>() {
                 if !shader_error_res.0.is_empty() {
                     for (shader_name, error) in &shader_error_res.0 {
-                        ui.colored_label(egui::Color32::RED, format!("❌ {} Compilation Error:", shader_name));
+                        ui.colored_label(
+                            egui::Color32::RED,
+                            format!("❌ {} Compilation Error:", shader_name),
+                        );
                         ui.separator();
 
                         egui::ScrollArea::vertical()

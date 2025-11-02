@@ -1,4 +1,5 @@
-use bevy_ecs::prelude::*;
+
+use crate::prelude::*;
 
 #[derive(Component)]
 pub struct Mesh {
@@ -18,11 +19,12 @@ pub struct GpuMesh {
 pub struct Vertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
+    pub normal: [f32; 3],
 }
 
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
+    const ATTRIBS: [wgpu::VertexAttribute; 3] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;

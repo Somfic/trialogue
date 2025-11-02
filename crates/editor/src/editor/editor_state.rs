@@ -1,4 +1,8 @@
+
+use crate::prelude::*;
 use trialogue_engine::prelude::*;
+
+use crate::inspector::{ComponentInspector, create_component_inspector};
 
 #[derive(Default)]
 pub struct EditorState {

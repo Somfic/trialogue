@@ -14,3 +14,7 @@ egui = { workspace = true }
 egui-wgpu = { workspace = true }
 egui-winit = { workspace = true }
 pollster = { workspace = true }
+rfd = { workspace = true }
+
+[build-dependencies]
+build-utils = { path = "../build-utils" }

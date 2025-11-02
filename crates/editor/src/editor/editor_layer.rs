@@ -1,5 +1,8 @@
-use super::{editor_state::EditorState, editor_ui};
+
+use crate::prelude::*;
 use trialogue_engine::prelude::*;
+
+use super::{editor_state::EditorState, editor_ui};
 
 pub struct EditorLayer {
     surface: wgpu::Surface<'static>,

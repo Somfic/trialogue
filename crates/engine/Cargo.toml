@@ -22,3 +22,4 @@ naga = { workspace = true }
 
 [build-dependencies]
 naga = { workspace = true }
+build-utils = { path = "../build-utils" }

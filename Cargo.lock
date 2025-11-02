@@ -393,6 +393,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "auto-prelude"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -610,6 +619,14 @@ dependencies = [
  "futures-io",
  "futures-lite",
  "piper",
+]
+
+[[package]]
+name = "build-utils"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -3468,6 +3485,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bevy_ecs",
+ "build-utils",
  "env_logger",
  "log",
  "trialogue-editor",
@@ -3481,12 +3499,14 @@ name = "trialogue-editor"
 version = "0.1.0"
 dependencies = [
  "bevy_ecs",
+ "build-utils",
  "egui",
  "egui-wgpu",
  "egui-winit",
  "log",
  "nalgebra",
  "pollster",
+ "rfd",
  "trialogue-engine",
  "wgpu",
  "winit",
@@ -3498,6 +3518,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bevy_ecs",
+ "build-utils",
  "bytemuck",
  "egui",
  "encase",

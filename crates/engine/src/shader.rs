@@ -1,4 +1,5 @@
-use bevy_ecs::prelude::Resource;
+use crate::prelude::*;
+
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -7,8 +8,6 @@ use std::sync::{
     Arc, Mutex,
     mpsc::{Receiver, channel},
 };
-
-use crate::prelude::Shader;
 
 /// Validates WGSL shader source using naga
 pub fn validate_wgsl(source: &str, shader_name: &str) -> Result<(), String> {
