@@ -18,6 +18,12 @@ pub struct CameraBindGroupLayout(pub wgpu::BindGroupLayout);
 pub struct TransformBindGroupLayout(pub wgpu::BindGroupLayout);
 
 #[derive(Resource)]
+pub struct ShadowBindGroupLayout(pub wgpu::BindGroupLayout);
+
+#[derive(Resource)]
+pub struct ShadowUniformLayout(pub wgpu::BindGroupLayout);
+
+#[derive(Resource)]
 pub struct Time(pub Duration);
 
 #[derive(Resource, Clone, Copy, PartialEq, Eq)]

@@ -227,6 +227,12 @@ impl Application {
                         BindGroupRequirement::Texture => &texture_layout.0,
                         BindGroupRequirement::Camera => &camera_layout.0,
                         BindGroupRequirement::Transform => &transform_layout.0,
+                        BindGroupRequirement::Shadow => {
+                            let shadow_layout = world.get_resource::<ShadowBindGroupLayout>().ok_or_else(|| {
+                                anyhow::anyhow!("ShadowBindGroupLayout resource not found - make sure RenderLayer is initialized")
+                            })?;
+                            &shadow_layout.0
+                        }
                         BindGroupRequirement::Unknown(name) => {
                             return Err(anyhow::anyhow!(
                                 "Unknown bind group requirement '{}' in shader",
@@ -304,7 +310,13 @@ impl Application {
                             unclipped_depth: false,
                             conservative: false,
                         },
-                        depth_stencil: None,
+                        depth_stencil: Some(wgpu::DepthStencilState {
+                            format: wgpu::TextureFormat::Depth32Float,
+                            depth_write_enabled: true,
+                            depth_compare: wgpu::CompareFunction::Less,
+                            stencil: wgpu::StencilState::default(),
+                            bias: wgpu::DepthBiasState::default(),
+                        }),
                         multisample: wgpu::MultisampleState {
                             count: 1,
                             mask: !0,

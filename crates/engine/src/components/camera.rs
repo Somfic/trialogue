@@ -32,6 +32,27 @@ pub struct GpuRenderTarget {
     pub texture: wgpu::Texture,
 }
 
+#[derive(Component)]
+pub struct GpuDepthTexture {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+}
+
+#[derive(Component)]
+pub struct GpuShadowMap {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
+    pub bind_group: wgpu::BindGroup,
+    pub light_buffer: wgpu::Buffer,
+    pub light_dir_buffer: wgpu::Buffer,
+    pub light_properties_buffer: wgpu::Buffer,
+    pub shadow_uniform_bind_group: wgpu::BindGroup,
+    pub light_dir: Vector3<f32>, // Store for comparison
+    pub light_intensity: f32,
+    pub light_color: [f32; 3],
+}
+
 // Helper constant for coordinate system conversion
 #[rustfmt::skip]
 const OPENGL_TO_WGPU: Matrix4<f32> = Matrix4::new(

@@ -9,7 +9,9 @@ struct TransformUniform {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
-    @location(1) normal: vec3<f32>, 
+    @location(1) normal: vec3<f32>,
+    @location(2) world_pos: vec3<f32>,
+    @location(3) light_space_pos: vec4<f32>,
 }
 
 
@@ -17,6 +19,11 @@ struct VertexOutput {
 @group(0) @binding(1) var s_diffuse: sampler;
 @group(1) @binding(0) var<uniform> camera: CameraUniform;
 @group(2) @binding(0) var<uniform> transform: TransformUniform;
+@group(3) @binding(0) var t_shadow: texture_depth_2d;
+@group(3) @binding(1) var sampler_shadow: sampler_comparison;
+@group(3) @binding(2) var<uniform> light_space_matrix: mat4x4<f32>;
+@group(3) @binding(3) var<uniform> light_direction: vec4<f32>;
+@group(3) @binding(4) var<uniform> light_properties: vec4<f32>; // x=intensity, yzw=color
  
 @vertex
 fn vertex(
@@ -25,36 +32,100 @@ fn vertex(
     @location(2) normal: vec3<f32>,
 ) -> VertexOutput {
     var out: VertexOutput;
+    let world_position = transform.model * vec4<f32>(position, 1.0);
+
     out.uv = uv;
     out.normal = normalize((transform.model * vec4<f32>(normal, 0.0)).xyz);
-    out.clip_position = camera.view_proj * transform.model * vec4<f32>(position, 1.0);
+    out.world_pos = world_position.xyz;
+    out.clip_position = camera.view_proj * world_position;
+    out.light_space_pos = light_space_matrix * world_position;
     return out;
+}
+
+fn calculate_shadow(light_space_pos: vec4<f32>, normal: vec3<f32>, light_dir: vec3<f32>) -> f32 {
+    // Perspective divide
+    let proj_coords = light_space_pos.xyz / light_space_pos.w;
+
+    // Transform to [0,1] range (from NDC [-1,1])
+    let uv = proj_coords.xy * 0.5 + 0.5;
+    let depth = proj_coords.z;
+
+    // Outside shadow map = fully lit
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || depth < 0.0 || depth > 1.0) {
+        return 1.0;
+    }
+
+    // Facing away from light = in shadow
+    let n_dot_l = dot(normal, light_dir);
+    if (n_dot_l <= 0.0) {
+        return 0.0;
+    }
+
+    // Smaller adaptive bias for higher resolution shadow map
+    let bias = max(0.002 * (1.0 - n_dot_l), 0.0005);
+
+    // PCF with Poisson disk samples for smoother, less grid-like shadows
+    let texel_size = 1.0 / 4096.0;
+    let filter_radius = 2.0 * texel_size;
+
+    // 16-sample Poisson disk
+    let poisson = array<vec2<f32>, 16>(
+        vec2<f32>(-0.94201624, -0.39906216),
+        vec2<f32>(0.94558609, -0.76890725),
+        vec2<f32>(-0.094184101, -0.92938870),
+        vec2<f32>(0.34495938, 0.29387760),
+        vec2<f32>(-0.91588581, 0.45771432),
+        vec2<f32>(-0.81544232, -0.87912464),
+        vec2<f32>(-0.38277543, 0.27676845),
+        vec2<f32>(0.97484398, 0.75648379),
+        vec2<f32>(0.44323325, -0.97511554),
+        vec2<f32>(0.53742981, -0.47373420),
+        vec2<f32>(-0.26496911, -0.41893023),
+        vec2<f32>(0.79197514, 0.19090188),
+        vec2<f32>(-0.24188840, 0.99706507),
+        vec2<f32>(-0.81409955, 0.91437590),
+        vec2<f32>(0.19984126, 0.78641367),
+        vec2<f32>(0.14383161, -0.14100790)
+    );
+
+    var shadow = 0.0;
+    for (var i = 0; i < 16; i++) {
+        let offset = poisson[i] * filter_radius;
+        shadow += textureSampleCompare(t_shadow, sampler_shadow, uv + offset, depth - bias);
+    }
+
+    return shadow / 16.0;
 }
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Hardcoded directional light (like sunlight)
-    let light_dir = normalize(vec3<f32>(0.5, 1.0, 0.3)); // From top-right
-    let light_color = vec3<f32>(1.0, 1.0, 0.9); // Slightly warm white
+    // Get light properties
+    let light_dir = normalize(light_direction.xyz);
+    let light_intensity = light_properties.x;
+    let light_color = light_properties.yzw * light_intensity;
 
-    // Ambient light (so dark side isn't pure black)
-    let ambient = vec3<f32>(0.3, 0.3, 0.4); // Slight blue tint
+    // Material
+    let albedo = vec3<f32>(0.7, 0.6, 0.5);
 
-    // Base color for the planet
-    let base_color = vec3<f32>(0.7, 0.6, 0.5); // Sandy/rocky color
-
-    // Diffuse lighting calculation
     let normal = normalize(in.normal);
-    let diffuse_strength = max(dot(normal, light_dir), 0.0);
-    let diffuse = light_color * diffuse_strength;
-    
-    let up = vec3<f32>(0.0, 1.0, 0.0);  // Up direction
-    let ao = max(dot(normal, up), 0.0);  // 1.0 = facing up, 0.0 = facing down
-    let ao_strength = 0.3 + ao * 0.7;    // Remap to 0.3-1.0 range
+    let view_dir = normalize(-in.world_pos);
 
-    // Combine ambient + diffuse, modulated by AO
-    let lighting = (ambient + diffuse) * ao_strength;
-    let final_color = base_color * lighting;
+    // Basic diffuse
+    let n_dot_l = max(dot(normal, light_dir), 0.0);
+
+    // Shadow
+    let shadow = calculate_shadow(in.light_space_pos, normal, light_dir);
+
+    // Simple Lambertian shading
+    let diffuse = albedo * light_color * n_dot_l * shadow;
+
+    // Tiny bit of specular for highlights
+    let half_dir = normalize(light_dir + view_dir);
+    let n_dot_h = max(dot(normal, half_dir), 0.0);
+    let spec = pow(n_dot_h, 32.0) * 0.2;
+    let specular = light_color * spec * shadow;
+
+    let final_color = diffuse + specular;
 
     return vec4<f32>(final_color, 1.0);
 }

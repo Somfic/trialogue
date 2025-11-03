@@ -74,6 +74,7 @@ fn generate_face_vertices(
     let mut indices = Vec::new();
 
     let step = 1.0 / planet.subdivisions as f32;
+    let epsilon = step * 0.01; // Small offset for normal calculation
 
     for y in 0..=planet.subdivisions {
         for x in 0..=planet.subdivisions {
@@ -81,13 +82,47 @@ fn generate_face_vertices(
             let v = y as f32 * step;
 
             let position_on_cube = cube_face_uv_to_xyz(&face, u, v);
-            let position = position_on_cube.normalize();
+            let position_sphere = position_on_cube.normalize();
 
-            let terrain_height = generate_terrain_height(noise, &position, &planet.terrain_config);
+            let terrain_height = generate_terrain_height(noise, &position_sphere, &planet.terrain_config);
             let terrain_height = 1.0 + terrain_height * planet.terrain_config.noise_strength;
-            let position = position * terrain_height;
+            let position = position_sphere * terrain_height;
 
-            let normal = position;
+            // Calculate normal using central differences for better accuracy
+            // Clamp offsets to stay within valid UV range
+            let u_plus = (u + epsilon).min(1.0);
+            let u_minus = (u - epsilon).max(0.0);
+            let v_plus = (v + epsilon).min(1.0);
+            let v_minus = (v - epsilon).max(0.0);
+
+            // Sample points in both directions
+            let pos_u_plus = cube_face_uv_to_xyz(&face, u_plus, v).normalize();
+            let pos_u_minus = cube_face_uv_to_xyz(&face, u_minus, v).normalize();
+            let pos_v_plus = cube_face_uv_to_xyz(&face, u, v_plus).normalize();
+            let pos_v_minus = cube_face_uv_to_xyz(&face, u, v_minus).normalize();
+
+            // Get heights
+            let h_u_plus = generate_terrain_height(noise, &pos_u_plus, &planet.terrain_config);
+            let h_u_minus = generate_terrain_height(noise, &pos_u_minus, &planet.terrain_config);
+            let h_v_plus = generate_terrain_height(noise, &pos_v_plus, &planet.terrain_config);
+            let h_v_minus = generate_terrain_height(noise, &pos_v_minus, &planet.terrain_config);
+
+            let p_u_plus = pos_u_plus * (1.0 + h_u_plus * planet.terrain_config.noise_strength);
+            let p_u_minus = pos_u_minus * (1.0 + h_u_minus * planet.terrain_config.noise_strength);
+            let p_v_plus = pos_v_plus * (1.0 + h_v_plus * planet.terrain_config.noise_strength);
+            let p_v_minus = pos_v_minus * (1.0 + h_v_minus * planet.terrain_config.noise_strength);
+
+            // Central difference tangent vectors
+            let tangent_u = p_u_plus - p_u_minus;
+            let tangent_v = p_v_plus - p_v_minus;
+
+            // Normal is perpendicular to both tangents
+            // Ensure it points outward by checking dot product with sphere normal
+            let mut normal = tangent_u.cross(&tangent_v).normalize();
+            if normal.dot(&position_sphere) < 0.0 {
+                normal = -normal;
+            }
+
             let uv = [u, v];
 
             vertices.push(Vertex {
@@ -105,12 +140,13 @@ fn generate_face_vertices(
             let i2 = i0 + (planet.subdivisions + 1);
             let i3 = i2 + 1;
 
+            // CCW winding for front faces
             indices.push(i0 as Index);
-            indices.push(i2 as Index);
             indices.push(i1 as Index);
+            indices.push(i2 as Index);
 
-            indices.push(i1 as Index);
             indices.push(i2 as Index);
+            indices.push(i1 as Index);
             indices.push(i3 as Index);
         }
     }

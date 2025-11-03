@@ -257,6 +257,7 @@ pub enum BindGroupRequirement {
     Texture,         // Detected from: texture_2d, sampler variables (t_diffuse, s_diffuse, etc.)
     Camera,          // Detected from: camera variable
     Transform,       // Detected from: transform variable
+    Shadow,          // Detected from: shadow map texture, sampler, and matrix
     Unknown(String), // For bind groups we don't recognize yet
 }
 
@@ -314,7 +315,9 @@ impl BindGroupRequirement {
         let lower = line.to_lowercase();
 
         // Check for common patterns
-        if lower.contains("texture")
+        if lower.contains("shadow") || lower.contains("t_shadow") || lower.contains("light_space") {
+            Self::Shadow
+        } else if lower.contains("texture")
             || lower.contains("sampler")
             || lower.contains("t_diffuse")
             || lower.contains("s_diffuse")
