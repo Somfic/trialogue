@@ -2,18 +2,15 @@ use noise::{NoiseFn, Perlin};
 use rayon::prelude::*;
 
 use crate::prelude::*;
-use crate::sandbox_layer::WorldHandle;
 
 pub fn planet_mesh(
-    world_handle: Res<WorldHandle>,
     mut tracker: ResMut<AsyncTaskTracker<Entity>>,
     query: Query<(Entity, &Planet), Changed<Planet>>,
 ) {
     for (entity, planet) in query.iter() {
         let planet = planet.clone();
 
-        tracker.spawn_async_task_for_entity(
-            world_handle.0.clone(),
+        tracker.spawn_for_entity(
             entity,
             move || generate_planet_mesh(&planet),
             |mut entity_mut, mesh| {

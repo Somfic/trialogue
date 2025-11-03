@@ -4,44 +4,66 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 
+/// Type alias for closures that apply async results to the world.
+/// These are executed on the main thread by the `apply_async_entity_results` system.
+type ApplyClosure = Box<dyn FnOnce(&mut World) + Send>;
+
 /// Generic tracker for async task generations.
 ///
 /// Prevents stale async results from being applied by tracking generation numbers.
 /// Each time a new task is started for a key, the generation is incremented.
-/// Async tasks can check if their generation is still current before applying results.
+/// Results are queued and applied by the `apply_async_entity_results` system.
+///
+/// # Architecture
+///
+/// This implementation uses a queue-based approach:
+/// 1. Tasks are spawned with generation tracking
+/// 2. Background threads execute work and queue results
+/// 3. The `apply_async_entity_results` system processes queued results each frame
+/// 4. Results are only applied if their generation is still current
+///
+/// This eliminates the need to lock the World from background threads.
 ///
 /// # Example
-/// ```
-/// use trialogue_engine::AsyncTaskTracker;
+/// ```ignore
+/// fn my_system(mut tracker: ResMut<AsyncTaskTracker<Entity>>, query: Query<(Entity, &Data), Changed<Data>>) {
+///     for (entity, data) in query.iter() {
+///         let data = data.clone();
 ///
-/// let mut tracker = AsyncTaskTracker::new();
-///
-/// // Start a task
-/// let generation = tracker.start_task("mesh_1");
-///
-/// // In async thread:
-/// if tracker.is_current(&"mesh_1", generation) {
-///     // Apply result
+///         tracker.spawn_for_entity(
+///             entity,
+///             move || expensive_computation(&data),
+///             |mut entity_mut, result| {
+///                 entity_mut.insert(result);
+///             },
+///         );
+///     }
 /// }
 /// ```
 #[derive(Resource)]
 pub struct AsyncTaskTracker<K: Hash + Eq + Clone + Send + Sync + 'static> {
-    generations: HashMap<K, u64>,
+    /// Generation counter for each key. Incremented on each new task.
+    generations: Arc<Mutex<HashMap<K, u64>>>,
+    /// Queue of pending results to be applied on the main thread.
+    pending_results: Arc<Mutex<Vec<ApplyClosure>>>,
 }
 
 impl<K: Hash + Eq + Clone + Send + Sync + 'static> AsyncTaskTracker<K> {
-    /// Create a new async task tracker
+    /// Create a new async task tracker.
     pub fn new() -> Self {
         Self {
-            generations: HashMap::new(),
+            generations: Arc::new(Mutex::new(HashMap::new())),
+            pending_results: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
     /// Start a new task for the given key, returning the generation ID.
     /// This increments the generation counter, invalidating any previous tasks.
-    pub fn start_task(&mut self, key: K) -> u64 {
-        let generation = self.generations.entry(key).or_insert(0);
+    fn start_task(&mut self, key: K) -> u64 {
+        let mut generations = self.generations.lock().unwrap();
+        let generation = generations.entry(key).or_insert(0);
         *generation += 1;
+        log::debug!("Started async task generation {}", *generation);
         *generation
     }
 
@@ -49,74 +71,77 @@ impl<K: Hash + Eq + Clone + Send + Sync + 'static> AsyncTaskTracker<K> {
     /// Returns false if a newer task has been started or if the key doesn't exist.
     pub fn is_current(&self, key: &K, generation: u64) -> bool {
         self.generations
+            .lock()
+            .unwrap()
             .get(key)
             .map_or(false, |&current| current == generation)
     }
 
-    /// Clean up tracking for a key (e.g., when entity is deleted)
+    /// Clean up tracking for a key (e.g., when an entity is deleted).
     pub fn remove(&mut self, key: &K) {
-        self.generations.remove(key);
+        self.generations.lock().unwrap().remove(key);
     }
 
     /// Spawn an async task with automatic generation tracking.
     ///
-    /// This is a helper method that encapsulates the entire async task pattern:
+    /// This method:
     /// 1. Starts a new generation for the key
     /// 2. Spawns a background thread to execute the work
-    /// 3. Checks if the generation is still current before applying the result
-    /// 4. Applies the result only if no newer task was started
+    /// 3. Queues the result to be applied on the main thread
+    /// 4. The result is only applied if no newer task was started (checked by the apply system)
     ///
     /// # Arguments
-    /// * `world` - The world handle to access ECS
-    /// * `key` - The key to track (e.g., Entity)
+    /// * `key` - The key to track (e.g., Entity, String, etc.)
     /// * `work` - Closure that produces the result (runs on background thread)
-    /// * `apply` - Closure that applies the result to the world (runs on background thread if generation is current)
+    /// * `apply` - Closure that applies the result to the world (runs on main thread if generation is current)
     ///
     /// # Example
     /// ```ignore
-    /// tracker.spawn_async_task(
-    ///     world_handle.0.clone(),
-    ///     entity,
-    ///     || generate_mesh(&planet),  // work
-    ///     |world, entity, mesh| {     // apply
-    ///         if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
-    ///             entity_mut.insert(mesh);
-    ///         }
+    /// tracker.spawn(
+    ///     "my_key".to_string(),
+    ///     || expensive_work(),
+    ///     |world, key, result| {
+    ///         // Apply result to world
     ///     }
     /// );
     /// ```
-    pub fn spawn_async_task<T, W, A>(&mut self, world: Arc<Mutex<World>>, key: K, work: W, apply: A)
+    pub fn spawn<T, W, A>(&mut self, key: K, work: W, apply: A)
     where
         T: Send + 'static,
         W: FnOnce() -> T + Send + 'static,
         A: FnOnce(&mut World, K, T) + Send + 'static,
     {
         let generation = self.start_task(key.clone());
+        let generations = self.generations.clone();
+        let pending_results = self.pending_results.clone();
 
         rayon::spawn(move || {
             // Execute work on background thread
             let result = work();
 
-            // Lock world and apply result if generation is still current
-            if let Ok(mut world) = world.lock() {
-                // Check if this generation is still current (no newer task started)
-                let is_current = world
-                    .get_resource::<AsyncTaskTracker<K>>()
-                    .map_or(false, |tracker| tracker.is_current(&key, generation));
+            // Create closure that will check generation and apply result
+            let apply_closure: ApplyClosure = Box::new(move |world: &mut World| {
+                // Check if generation is still current
+                let is_current = generations
+                    .lock()
+                    .unwrap()
+                    .get(&key)
+                    .map_or(false, |&current| current == generation);
 
                 if is_current {
-                    // Safe to apply - this is the latest generation
-                    apply(&mut world, key, result);
+                    log::debug!("Applying async result for generation {}", generation);
+                    apply(world, key, result);
+                } else {
+                    log::debug!(
+                        "Discarding stale async result for generation {}",
+                        generation
+                    );
                 }
-                // Otherwise, a newer task was started - discard this result
-            }
-        });
-    }
-}
+            });
 
-impl<K: Hash + Eq + Clone + Send + Sync + 'static> Default for AsyncTaskTracker<K> {
-    fn default() -> Self {
-        Self::new()
+            // Queue the result to be applied on the main thread
+            pending_results.lock().unwrap().push(apply_closure);
+        });
     }
 }
 
@@ -127,43 +152,109 @@ impl AsyncTaskTracker<Entity> {
     /// This is a specialized version that checks if the entity still exists
     /// before calling the apply closure. The apply closure receives an
     /// `EntityWorldMut` for convenient entity manipulation.
-    pub fn spawn_async_task_for_entity<T, W, A>(
-        &mut self,
-        world: Arc<Mutex<World>>,
-        entity: Entity,
-        work: W,
-        apply: A,
-    ) where
+    ///
+    /// # Example
+    /// ```ignore
+    /// tracker.spawn_for_entity(
+    ///     entity,
+    ///     move || generate_mesh(&planet),
+    ///     |mut entity_mut, mesh| {
+    ///         entity_mut.insert(mesh);
+    ///     },
+    /// );
+    /// ```
+    pub fn spawn_for_entity<T, W, A>(&mut self, entity: Entity, work: W, apply: A)
+    where
         T: Send + 'static,
         W: FnOnce() -> T + Send + 'static,
         A: FnOnce(EntityWorldMut, T) + Send + 'static,
     {
         let generation = self.start_task(entity);
+        let generations = self.generations.clone();
+        let pending_results = self.pending_results.clone();
 
         rayon::spawn(move || {
             // Execute work on background thread
             let result = work();
 
-            // Lock world and apply result if generation is still current and entity exists
-            if let Ok(mut world) = world.lock() {
+            // Create closure that will check entity existence, generation, and apply result
+            let apply_closure: ApplyClosure = Box::new(move |world: &mut World| {
                 // Check if entity still exists
                 if world.get_entity(entity).is_err() {
+                    log::debug!(
+                        "Discarding async result for generation {} - entity {:?} no longer exists",
+                        generation,
+                        entity
+                    );
                     return; // Entity was deleted, discard result
                 }
 
-                // Check if this generation is still current (no newer task started)
-                let is_current = world
-                    .get_resource::<AsyncTaskTracker<Entity>>()
-                    .map_or(false, |tracker| tracker.is_current(&entity, generation));
+                // Check if generation is still current
+                let is_current = generations
+                    .lock()
+                    .unwrap()
+                    .get(&entity)
+                    .map_or(false, |&current| current == generation);
 
                 if is_current {
+                    log::debug!(
+                        "Applying async result for entity {:?} generation {}",
+                        entity,
+                        generation
+                    );
                     // Safe to apply - entity exists and this is the latest generation
                     if let Ok(entity_mut) = world.get_entity_mut(entity) {
                         apply(entity_mut, result);
                     }
+                } else {
+                    log::debug!(
+                        "Discarding stale async result for entity {:?} generation {}",
+                        entity,
+                        generation
+                    );
                 }
-                // Otherwise, a newer task was started - discard this result
-            }
+            });
+
+            // Queue the result to be applied on the main thread
+            pending_results.lock().unwrap().push(apply_closure);
         });
+    }
+}
+
+impl<K: Hash + Eq + Clone + Send + Sync + 'static> Default for AsyncTaskTracker<K> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// System that processes pending async results for Entity-keyed tasks.
+///
+/// This should be added to your Bevy schedule to process results from
+/// `AsyncTaskTracker<Entity>`. It runs all pending result closures on
+/// the main thread, which apply results to entities if they're still valid.
+///
+/// Add this system to your app like:
+/// ```ignore
+/// app.add_systems(Update, apply_async_entity_results);
+/// ```
+pub fn apply_async_entity_results(world: &mut World) {
+    // Get the pending results queue (cloning the Arc)
+    let pending_results = world
+        .get_resource::<AsyncTaskTracker<Entity>>()
+        .map(|tracker| tracker.pending_results.clone());
+
+    if let Some(pending_results) = pending_results {
+        // Lock and drain all pending results
+        let mut results = pending_results.lock().unwrap();
+
+        let count = results.len();
+        if count > 0 {
+            log::debug!("Processing {} pending async results", count);
+        }
+
+        // Apply each result closure to the world
+        for apply in results.drain(..) {
+            apply(world);
+        }
     }
 }
