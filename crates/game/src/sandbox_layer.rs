@@ -16,7 +16,17 @@ impl SandboxLayer {
         }
 
         let mut schedule = Schedule::default();
-        schedule.add_systems((crate::systems::planet_mesh, apply_async_entity_results));
+        // Use chain() to run systems sequentially and avoid query conflicts
+        schedule.add_systems((
+            apply_async_entity_results,
+            crate::systems::planet_mesh,
+            crate::systems::initialize_planet_lod_chunks,
+            crate::systems::update_planet_lod_raycast,
+            crate::systems::generate_chunk_meshes,
+            crate::systems::copy_material_to_children,
+            crate::systems::copy_texture_to_children,
+            crate::systems::update_children_transforms,
+        ).chain());
         Self { schedule }
     }
 }

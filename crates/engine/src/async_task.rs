@@ -77,6 +77,16 @@ impl<K: Hash + Eq + Clone + Send + Sync + 'static> AsyncTaskTracker<K> {
             .map_or(false, |&current| current == generation)
     }
 
+    /// Check if there's a pending task for this key.
+    /// Returns true if a task has been started (generation > 0).
+    pub fn has_pending_task(&self, key: &K) -> bool {
+        self.generations
+            .lock()
+            .unwrap()
+            .get(key)
+            .map_or(false, |&generation| generation > 0)
+    }
+
     /// Clean up tracking for a key (e.g., when an entity is deleted).
     pub fn remove(&mut self, key: &K) {
         self.generations.lock().unwrap().remove(key);

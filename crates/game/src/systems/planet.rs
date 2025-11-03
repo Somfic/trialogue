@@ -24,7 +24,7 @@ fn generate_planet_mesh(planet: &Planet) -> Mesh {
     let noise = Perlin::new(planet.seed());
 
     // Generate all 6 faces in parallel
-    let faces_data: Vec<_> = CubeFace::to_vec()
+    let faces_data: Vec<_> = CubeFace::all()
         .into_par_iter()
         .map(|face| generate_face_vertices(face, planet, &noise))
         .collect();
@@ -40,29 +40,6 @@ fn generate_planet_mesh(planet: &Planet) -> Mesh {
     }
 
     Mesh { vertices, indices }
-}
-
-#[derive(Clone, Copy)]
-enum CubeFace {
-    PositiveX,
-    NegativeX,
-    PositiveY,
-    NegativeY,
-    PositiveZ,
-    NegativeZ,
-}
-
-impl CubeFace {
-    fn to_vec() -> Vec<CubeFace> {
-        vec![
-            CubeFace::PositiveX,
-            CubeFace::NegativeX,
-            CubeFace::PositiveY,
-            CubeFace::NegativeY,
-            CubeFace::PositiveZ,
-            CubeFace::NegativeZ,
-        ]
-    }
 }
 
 fn generate_face_vertices(

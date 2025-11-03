@@ -39,6 +39,29 @@ impl Default for TerrainConfig {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CubeFace {
+    PositiveX,
+    NegativeX,
+    PositiveY,
+    NegativeY,
+    PositiveZ,
+    NegativeZ,
+}
+
+impl CubeFace {
+    pub fn all() -> [CubeFace; 6] {
+        [
+            CubeFace::PositiveX,
+            CubeFace::NegativeX,
+            CubeFace::PositiveY,
+            CubeFace::NegativeY,
+            CubeFace::PositiveZ,
+            CubeFace::NegativeZ,
+        ]
+    }
+}
+
 // Auto-register Planet for inspection
 trialogue_editor::register_inspectable!(Planet, "Planet");
 

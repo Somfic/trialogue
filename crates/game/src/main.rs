@@ -6,12 +6,13 @@ use trialogue_engine::{
 };
 use winit::event_loop::EventLoop;
 
-use crate::prelude::Planet;
+use crate::prelude::{Planet, PlanetLod, CopyToChildren};
 
 mod components;
 mod prelude;
 mod sandbox_layer;
 mod systems;
+mod utils;
 
 fn main() -> Result<()> {
     env_logger::Builder::from_default_env()
@@ -44,25 +45,44 @@ fn main() -> Result<()> {
         include_str!("../../engine/src/layers/raytracer/raytracer.wgsl"),
     );
 
+    // Spawn LOD Planet (comment this out to test regular planet)
     app.spawn(
-        "Planet",
+        "LOD Planet",
         (
             Transform {
                 scale: Vector3::new(500.0, 500.0, 500.0),
                 position: Point3::new(0.0, 0.0, -150.0),
                 ..Default::default()
             },
-            Planet {
-                seed: "ExampleSeed".to_string(),
-                subdivisions: 3,
-                terrain_config: Default::default(),
-            },
+            PlanetLod::new("ExampleSeed".to_string()),
+            CopyToChildren, // Components will be copied to chunk children when changed
             Material::standard(),
             Texture {
                 bytes: include_bytes!("cat.png").to_vec(),
             },
         ),
     );
+
+    // Old Planet (comment out when testing LOD)
+    // app.spawn(
+    //     "Planet",
+    //     (
+    //         Transform {
+    //             scale: Vector3::new(500.0, 500.0, 500.0),
+    //             position: Point3::new(0.0, 0.0, -150.0),
+    //             ..Default::default()
+    //         },
+    //         Planet {
+    //             seed: "ExampleSeed".to_string(),
+    //             subdivisions: 3,
+    //             terrain_config: Default::default(),
+    //         },
+    //         Material::standard(),
+    //         Texture {
+    //             bytes: include_bytes!("cat.png").to_vec(),
+    //         },
+    //     ),
+    // );
 
     // Note: aspect ratio will be automatically set to match window dimensions
     app.spawn(
