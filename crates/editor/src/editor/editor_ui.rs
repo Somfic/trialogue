@@ -129,13 +129,13 @@ pub fn draw_ui(
         });
 
     // floating panel for stats
-    egui::Window::new("Stats")
-        .default_pos(egui::pos2(20.0, 20.0))
-        .resizable(true)
-        .show(ctx, |ui| {
-            ui.label("Rendering Stats:");
-            ui.separator();
-            let dt = context.delta_time.as_millis();
-            ui.label(format!("Frame Time: {} ms", dt));
-        });
+    // egui::Window::new("Stats")
+    //     .default_pos(egui::pos2(20.0, 20.0))
+    //     .resizable(true)
+    //     .show(ctx, |ui| {
+    //         ui.label("Rendering Stats:");
+    //         ui.separator();
+    //         let dt = context.delta_time.as_millis();
+    //         ui.label(format!("Frame Time: {} ms", dt));
+    //     });
 }

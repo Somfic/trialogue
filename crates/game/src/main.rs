@@ -49,7 +49,7 @@ fn main() -> Result<()> {
         (
             Transform {
                 scale: Vector3::new(500.0, 500.0, 500.0),
-                position: Point3::new(0.0, -250.0, -250.0),
+                position: Point3::new(0.0, 0.0, -150.0),
                 ..Default::default()
             },
             Planet {
@@ -78,7 +78,7 @@ fn main() -> Result<()> {
                 fovy: 1.0,
                 target: Point3::new(0.0, 0.0, 0.0),
                 zfar: 100.0,
-                znear: 0.0001,
+                znear: 0.01,
                 aperture: 0.1,
                 focus_distance: 10.0,
             },
