@@ -3,12 +3,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use winit::{application::ApplicationHandler, event::WindowEvent, window::Window};
 
+use crate::input::InputState;
 use crate::prelude::Shader;
 pub type Result<T> = anyhow::Result<T>;
 
 pub mod async_task;
 pub mod components;
 pub mod gpu_component;
+pub mod input;
 pub mod layers;
 pub mod prelude;
 pub mod shader;
@@ -59,10 +61,18 @@ impl ApplicationBuilder {
     }
 
     pub fn build(self) -> Application {
+        let world = Arc::new(Mutex::new(World::new()));
+        
+        // Initialize InputState resource
+        {
+            let mut w = world.lock().unwrap();
+            w.insert_resource(InputState::new());
+        }
+        
         Application {
             layer_factories: self.layer_factories,
             state: None,
-            world: Arc::new(Mutex::new(World::new())),
+            world,
             shader_registrations: Vec::new(),
         }
     }
@@ -116,6 +126,14 @@ impl Application {
         let now = Instant::now();
         let delta_time = now.duration_since(state.last_frame_time);
         state.last_frame_time = now;
+
+        // Reset per-frame input state
+        {
+            let mut world = self.world.lock().unwrap();
+            if let Some(mut input_state) = world.get_resource_mut::<InputState>() {
+                input_state.reset_frame();
+            }
+        }
 
         let context = LayerContext {
             window: state.window.clone(),
@@ -277,6 +295,16 @@ impl Application {
             // Create all shader instances first
             let mut instances: Vec<(RenderMode, ShaderInstance)> = Vec::new();
 
+            // Different vertex buffer layout for instanced shaders
+            let vertex_buffer_layout = Vertex::desc();
+            let instance_buffer_layout = InstanceData::desc();
+            
+            let vertex_buffers: &[wgpu::VertexBufferLayout] = if matches!(registration.shader, Shader::Instanced) {
+                &[vertex_buffer_layout, instance_buffer_layout]
+            } else {
+                &[vertex_buffer_layout]
+            };
+
             for render_mode in &render_modes {
                 let render_pipeline =
                     device_clone.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -288,7 +316,7 @@ impl Application {
                         vertex: wgpu::VertexState {
                             module: &shader,
                             entry_point: Some("vertex"),
-                            buffers: &[Vertex::desc()],
+                            buffers: vertex_buffers,
                             compilation_options: wgpu::PipelineCompilationOptions::default(),
                         },
                         fragment: Some(wgpu::FragmentState {
@@ -416,6 +444,51 @@ impl ApplicationHandler for Application {
         _window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
+        // Handle input events
+        {
+            use winit::event::{WindowEvent, ElementState, MouseButton};
+            use winit::keyboard::{PhysicalKey, KeyCode};
+            use winit::window::CursorGrabMode;
+            
+            let mut world = self.world.lock().unwrap();
+            if let Some(mut input_state) = world.get_resource_mut::<InputState>() {
+                match &event {
+                    WindowEvent::KeyboardInput { event: key_event, .. } => {
+                        if let PhysicalKey::Code(keycode) = key_event.physical_key {
+                            match key_event.state {
+                                ElementState::Pressed => input_state.press_key(keycode),
+                                ElementState::Released => input_state.release_key(keycode),
+                            }
+                        }
+                    }
+                    WindowEvent::MouseInput { state, button, .. } => {
+                        // Toggle mouse capture on right click
+                        if *button == MouseButton::Right && *state == ElementState::Pressed {
+                            input_state.toggle_mouse_capture();
+                            
+                            // Update cursor visibility and grab mode
+                            if let Some(app_state) = &self.state {
+                                if input_state.mouse_captured {
+                                    app_state.window.set_cursor_visible(false);
+                                    let _ = app_state.window.set_cursor_grab(CursorGrabMode::Locked)
+                                        .or_else(|_| app_state.window.set_cursor_grab(CursorGrabMode::Confined));
+                                    log::info!("Mouse captured - use right-click to release");
+                                } else {
+                                    app_state.window.set_cursor_visible(true);
+                                    let _ = app_state.window.set_cursor_grab(CursorGrabMode::None);
+                                    log::info!("Mouse released");
+                                }
+                            }
+                        }
+                    }
+                    WindowEvent::CursorMoved { position, .. } => {
+                        input_state.set_mouse_position(position.x as f32, position.y as f32);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        
         let event = Arc::new(event);
 
         match *event {
@@ -439,6 +512,22 @@ impl ApplicationHandler for Application {
 
             for layer in &mut state.layers {
                 layer.event(&context, LayerEvent::WindowEvent(event.clone()));
+            }
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        use winit::event::DeviceEvent;
+        
+        let mut world = self.world.lock().unwrap();
+        if let Some(mut input_state) = world.get_resource_mut::<InputState>() {
+            if let DeviceEvent::MouseMotion { delta } = event {
+                input_state.add_mouse_delta(delta.0 as f32, delta.1 as f32);
             }
         }
     }

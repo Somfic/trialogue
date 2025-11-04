@@ -4,6 +4,7 @@ use std::fmt::Display;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Shader {
     Standard,
+    Instanced,
     Raytracer,
 }
 
@@ -11,6 +12,7 @@ impl Display for Shader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Shader::Standard => write!(f, "standard"),
+            Shader::Instanced => write!(f, "instanced"),
             Shader::Raytracer => write!(f, "raytracer"),
         }
     }
@@ -62,6 +64,10 @@ impl Material {
 
     pub fn standard() -> Self {
         Self::new(Shader::Standard)
+    }
+
+    pub fn instanced() -> Self {
+        Self::new(Shader::Instanced)
     }
 
     /// Set the render mode for this material

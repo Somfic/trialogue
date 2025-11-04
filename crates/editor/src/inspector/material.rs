@@ -12,6 +12,7 @@ impl Inspectable for Material {
                 .selected_text(format!("{:?}", self.shader))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.shader, Shader::Standard, "Standard");
+                    ui.selectable_value(&mut self.shader, Shader::Instanced, "Instanced");
                     ui.selectable_value(&mut self.shader, Shader::Raytracer, "Raytracer");
                 });
         });

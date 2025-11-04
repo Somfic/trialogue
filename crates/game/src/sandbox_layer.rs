@@ -16,17 +16,33 @@ impl SandboxLayer {
         }
 
         let mut schedule = Schedule::default();
-        // Use chain() to run systems sequentially and avoid query conflicts
-        schedule.add_systems((
-            apply_async_entity_results,
-            crate::systems::planet_mesh,
-            crate::systems::initialize_planet_lod_chunks,
-            crate::systems::update_planet_lod_raycast,
-            crate::systems::generate_chunk_meshes,
-            crate::systems::copy_material_to_children,
-            crate::systems::copy_texture_to_children,
-            crate::systems::update_children_transforms,
-        ).chain());
+        
+        // Async task system
+        schedule.add_systems(apply_async_entity_results);
+        
+        // Camera controller (automatic circular motion for now)
+        schedule.add_systems(crate::systems::update_camera_controller);
+        
+        // NEW Instanced LOD systems (1 entity → many instances)
+        schedule.add_systems(crate::systems::initialize_instanced_quad_lod);
+        schedule.add_systems(crate::systems::update_instanced_quad_lod);
+        schedule.add_systems(crate::systems::update_instanced_lod_transforms);
+        schedule.add_systems(crate::systems::clear_instanced_lod_dirty_flags);
+        
+        // OLD Quad LOD systems (entity-per-chunk architecture - disabled for instanced test)
+        // schedule.add_systems(crate::systems::initialize_quad_lod);
+        // schedule.add_systems(crate::systems::generate_quad_chunk_meshes);
+        // schedule.add_systems(crate::systems::split_quad_chunks);
+        // schedule.add_systems(crate::systems::collapse_quad_chunks);
+        
+        // Planet systems (also using old architecture)
+        schedule.add_systems(crate::systems::planet_mesh);
+        schedule.add_systems(crate::systems::initialize_planet_lod_chunks);
+        schedule.add_systems(crate::systems::update_planet_lod_raycast);
+        schedule.add_systems(crate::systems::generate_chunk_meshes);
+        schedule.add_systems(crate::systems::copy_material_to_children);
+        schedule.add_systems(crate::systems::copy_texture_to_children);
+        schedule.add_systems(crate::systems::update_children_transforms);
         Self { schedule }
     }
 }

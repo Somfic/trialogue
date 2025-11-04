@@ -1,4 +1,5 @@
 mod camera;
+mod instanced_mesh;
 mod label;
 mod material;
 mod mesh;
@@ -8,6 +9,7 @@ mod texture;
 mod transform;
 
 pub use camera::*;
+pub use instanced_mesh::*;
 pub use label::*;
 pub use material::*;
 pub use mesh::*;

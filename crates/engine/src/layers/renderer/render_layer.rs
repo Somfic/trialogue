@@ -250,6 +250,9 @@ impl RenderLayer {
             gpu_initialize_with_transform_system::<Camera>,
             // Use custom camera update system that also watches GpuCamera changes (for aspect ratio)
             update_camera_buffers_custom,
+            // Instanced mesh systems for LOD rendering
+            gpu_initialize_system::<InstancedLodMesh>,
+            gpu_update_system::<InstancedLodMesh>,
             // Keep hand-written systems for RenderTarget (special case - depends on WindowSize)
             initialize_render_targets,
             update_render_targets,
@@ -325,6 +328,16 @@ impl RenderLayer {
                     push_constant_ranges: &[],
                 });
 
+        // Different vertex buffer layout for instanced shaders
+        let vertex_buffer_layout = Vertex::desc();
+        let instance_buffer_layout = InstanceData::desc();
+        
+        let vertex_buffers: &[wgpu::VertexBufferLayout] = if matches!(shader_type, Shader::Instanced) {
+            &[vertex_buffer_layout, instance_buffer_layout]
+        } else {
+            &[vertex_buffer_layout]
+        };
+
         let render_pipeline = self
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -333,7 +346,7 @@ impl RenderLayer {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vertex"),
-                    buffers: &[Vertex::desc()],
+                    buffers: vertex_buffers,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -470,9 +483,17 @@ impl Layer for RenderLayer {
         let mut camera_query =
             world.query::<(&GpuCamera, &GpuRenderTarget, &GpuDepthTexture, &GpuShadowMap)>();
         let mut mesh_query = world.query::<(&Material, &GpuMesh, &GpuTexture, &GpuTransform)>();
+        let mut instanced_mesh_query = world.query::<(&Material, &GpuInstancedLodMesh, &GpuTexture)>();
 
         // Get shader cache for looking up pipelines
         let shader_cache = world.get_resource::<ShaderCache>();
+
+        // Debug: count meshes
+        let mesh_count = mesh_query.iter(&world).count();
+        let instanced_count = instanced_mesh_query.iter(&world).count();
+        if mesh_count > 0 || instanced_count > 0 {
+            log::info!("Rendering {} regular meshes, {} instanced meshes", mesh_count, instanced_count);
+        }
 
         // Process each camera
         for (camera, target, depth, shadow_map) in camera_query.iter(&world) {
@@ -524,9 +545,9 @@ impl Layer for RenderLayer {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.0,
-                                g: 0.0,
-                                b: 0.0,
+                                r: 0.1,
+                                g: 0.1,
+                                b: 0.3,
                                 a: 1.0,
                             }),
                             store: wgpu::StoreOp::Store,
@@ -545,6 +566,7 @@ impl Layer for RenderLayer {
                     timestamp_writes: None,
                 });
 
+                // Render regular meshes
                 for (material, mesh, texture, transform) in mesh_query.iter(&world) {
                     // Look up shader pipeline from cache with render mode
                     let shader_instance = shader_cache.as_ref().and_then(|cache| {
@@ -602,6 +624,84 @@ impl Layer for RenderLayer {
                         render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                         render_pass.set_index_buffer(mesh.index_buffer.slice(..), index_format());
                         render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+                    } else {
+                        log::warn!("Shader '{}' not found in cache", material.shader);
+                    }
+                }
+
+                // Render instanced meshes (uses instanced shader with per-instance transforms)
+                for (material, instanced_mesh, texture) in instanced_mesh_query.iter(&world) {
+                    // Skip if no instances
+                    if instanced_mesh.instance_count == 0 {
+                        log::warn!("Skipping instanced mesh with 0 instances");
+                        continue;
+                    }
+                    
+                    log::info!("Rendering instanced mesh with {} instances", instanced_mesh.instance_count);
+
+                    // Look up shader pipeline from cache with render mode
+                    let shader_instance = shader_cache.as_ref().and_then(|cache| {
+                        cache.get_shader(&material.shader, &material.render_mode)
+                    });
+
+                    if let Some(shader_instance) = shader_instance {
+                        render_pass.set_pipeline(&shader_instance.pipeline);
+
+                        // Set bind groups (instanced shader doesn't use Transform bind group)
+                        for (index, requirement) in
+                            shader_instance.bind_group_requirements.iter().enumerate()
+                        {
+                            if let Some(req) = requirement {
+                                match req {
+                                    BindGroupRequirement::Texture => {
+                                        render_pass.set_bind_group(
+                                            index as u32,
+                                            Some(&texture.bind_group),
+                                            &[],
+                                        );
+                                    }
+                                    BindGroupRequirement::Camera => {
+                                        render_pass.set_bind_group(
+                                            index as u32,
+                                            &camera.bind_group,
+                                            &[],
+                                        );
+                                    }
+                                    BindGroupRequirement::Shadow => {
+                                        render_pass.set_bind_group(
+                                            index as u32,
+                                            &shadow_map.bind_group,
+                                            &[],
+                                        );
+                                    }
+                                    BindGroupRequirement::Transform => {
+                                        // Instanced shader doesn't use transform bind group
+                                        log::warn!("Instanced shader should not require Transform bind group");
+                                    }
+                                    BindGroupRequirement::Unknown(name) => {
+                                        log::warn!(
+                                            "Unknown bind group requirement '{}' at index {}",
+                                            name,
+                                            index
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // Set vertex buffers: slot 0 = geometry, slot 1 = instance data
+                        render_pass.set_vertex_buffer(0, instanced_mesh.vertex_buffer.slice(..));
+                        render_pass.set_vertex_buffer(1, instanced_mesh.instance_buffer.slice(..));
+                        render_pass.set_index_buffer(instanced_mesh.index_buffer.slice(..), index_format());
+                        
+                        // Draw with instancing
+                        render_pass.draw_indexed(
+                            0..instanced_mesh.index_count,
+                            0,
+                            0..instanced_mesh.instance_count,
+                        );
+                        
+                        log::debug!("Drew {} instances", instanced_mesh.instance_count);
                     } else {
                         log::warn!("Shader '{}' not found in cache", material.shader);
                     }

@@ -3,6 +3,7 @@ pub use crate::LayerContext;
 pub use crate::async_task::{apply_async_entity_results, AsyncTaskTracker};
 pub use crate::components::*;
 pub use crate::gpu_component::*;
+pub use crate::input::InputState;
 pub use bevy_ecs::prelude::*;
 pub use encase::ShaderType;
 pub use encase::StorageBuffer;
