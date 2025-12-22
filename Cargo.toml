@@ -3,7 +3,7 @@ members = ["crates/engine", "crates/editor", "crates/game", "crates/build-utils"
 resolver = "2"
 
 [workspace.dependencies]
-wgpu = { version = "27.0.1" }
+wgpu = { version = "28.0.0" }
 anyhow = "1.0.100"
 bevy_ecs = { version = "0.17.3" }
 bytemuck = { version = "1.24.0", features = ["derive"] }
