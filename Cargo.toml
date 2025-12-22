@@ -16,7 +16,7 @@ image = { version = "0.25.9", default-features = false, features = [
     "jpeg",
     "hdr",
 ] }
-log = "0.4.28"
+log = "0.4.29"
 nalgebra = { version = "0.34.1", features = ["bytemuck", "encase"] }
 pollster = "0.4.0"
 winit = "0.30.12"
